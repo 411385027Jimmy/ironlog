@@ -232,24 +232,31 @@ function loadState() {
     state.weeklySplit = rawSplit ? JSON.parse(rawSplit) : { ...DEFAULT_WEEKLY_SPLIT };
 
     const rawHist = localStorage.getItem(STORAGE_KEYS.HISTORY);
-    state.history = rawHist ? JSON.parse(rawHist) : [...INITIAL_HISTORY];
+    state.history = rawHist ? JSON.parse(rawHist) : [];
 
     const rawWorkout = localStorage.getItem(STORAGE_KEYS.ACTIVE_WORKOUT);
     if (rawWorkout) {
       state.activeWorkout = JSON.parse(rawWorkout);
     } else {
-      // 依當前星期幾預設載入今日排程範本
-      const day = new Date().getDay();
-      const routineId = state.weeklySplit[day] || state.routines[0].id;
-      loadRoutineIntoActiveWorkout(routineId, false);
+      // 根據當前星期幾檢查是否有課表
+      const currentDay = new Date().getDay();
+      const scheduledRoutineId = state.weeklySplit[currentDay];
+
+      if (scheduledRoutineId) {
+        // 今天有排課表才載入
+        loadRoutineIntoActiveWorkout(scheduledRoutineId, false);
+      } else {
+        // 今天為「休」：維持 null，絕不擅自硬塞課表！
+        state.activeWorkout = null;
+      }
     }
   } catch (e) {
     console.error('Storage load error', e);
     state.exercises = [...DEFAULT_EXERCISES];
     state.routines = [...DEFAULT_ROUTINES];
     state.weeklySplit = { ...DEFAULT_WEEKLY_SPLIT };
-    state.history = [...INITIAL_HISTORY];
-    loadRoutineIntoActiveWorkout(state.routines[0].id, false);
+    state.history = [];
+    state.activeWorkout = null;
   }
 }
 
@@ -259,7 +266,11 @@ function saveState() {
     localStorage.setItem(STORAGE_KEYS.ROUTINES, JSON.stringify(state.routines));
     localStorage.setItem(STORAGE_KEYS.WEEKLY_SPLIT, JSON.stringify(state.weeklySplit));
     localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(state.history));
-    localStorage.setItem(STORAGE_KEYS.ACTIVE_WORKOUT, JSON.stringify(state.activeWorkout));
+    if (state.activeWorkout) {
+      localStorage.setItem(STORAGE_KEYS.ACTIVE_WORKOUT, JSON.stringify(state.activeWorkout));
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.ACTIVE_WORKOUT);
+    }
   } catch (e) {
     console.error('Storage save error', e);
   }
@@ -285,7 +296,14 @@ function loadRoutineIntoActiveWorkout(routineId, overwriteConfirm = true) {
     if (!confirm('當前訓練有尚未結算的完成組數，確定要切換並重新載入新課表嗎？')) return;
   }
 
-  const routine = state.routines.find(r => r.id === routineId) || state.routines[0];
+  const routine = state.routines.find(r => r.id === routineId);
+  if (!routine) {
+    state.activeWorkout = null;
+    saveState();
+    renderWorkoutSheet();
+    return;
+  }
+
   const mobility = MOBILITY_PROTOCOLS[routine.category] || MOBILITY_PROTOCOLS['全身'];
 
   state.activeWorkout = {
@@ -294,7 +312,7 @@ function loadRoutineIntoActiveWorkout(routineId, overwriteConfirm = true) {
     category: routine.category,
     startTime: Date.now(),
     mobilityChecks: mobility.map(m => ({ text: m.text, done: false })),
-    exercises: routine.exercises.map(item => {
+    exercises: (routine.exercises || []).map(item => {
       const ex = state.exercises.find(e => e.id === item.exerciseId) || { name: '自訂動作', isCompound: false, pinNote: '' };
       const ghost = getExerciseGhostData(item.exerciseId);
       const defaultWeight = ghost ? ghost.weight : 40;
@@ -304,7 +322,7 @@ function loadRoutineIntoActiveWorkout(routineId, overwriteConfirm = true) {
       const setTotal = item.targetSets || 3;
       for (let i = 0; i < setTotal; i++) {
         sets.push({
-          id: 'set-' + Date.now() + '-' + i,
+          id: 'set-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
           setType: 'working',
           weight: defaultWeight,
           reps: defaultReps,
@@ -315,7 +333,7 @@ function loadRoutineIntoActiveWorkout(routineId, overwriteConfirm = true) {
 
       return {
         exerciseId: item.exerciseId,
-        isDumbbellEachSide: false, // 是否單手啞鈴算兩側重量
+        isDumbbellEachSide: false,
         pinNote: ex.pinNote || '',
         sets
       };
@@ -342,19 +360,74 @@ function roundTo2_5(val) {
 // ======================= 5. UI 渲染：現場訓練工作表 (Workout Sheet) =======================
 
 function renderWorkoutSheet() {
-  if (!state.activeWorkout) return;
-
-  // 1. 更新頂部今日課表看板
   const dayNames = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
   const currentDay = new Date().getDay();
   document.getElementById('todayDayNameBadge').textContent = dayNames[currentDay];
+
+  const mobilityBox = document.getElementById('mobilityWarmupBox');
+  const container = document.getElementById('workoutCardsContainer');
+  const finishBtn = document.getElementById('finishWorkoutBtn');
+
+  // 狀況 A：當天排定為「休」，且目前沒有主動進行課表
+  if (!state.activeWorkout) {
+    document.getElementById('headerWorkoutTag').textContent = '今日休息日';
+    document.getElementById('headerSetsProgressText').textContent = '休息修復中';
+    document.getElementById('activeRoutineTitle').textContent = '☕ 排定休息日 (Rest Day)';
+    mobilityBox.classList.add('hidden');
+    finishBtn.classList.add('opacity-40', 'pointer-events-none');
+
+    container.innerHTML = `
+      <div class="text-center py-12 bg-iron-900 border border-iron-800 rounded-2xl p-6 space-y-4 shadow-xl">
+        <div class="w-14 h-14 rounded-2xl bg-iron-850 border border-iron-750 flex items-center justify-center mx-auto text-accent-amber shadow-inner">
+          <i data-lucide="coffee" class="w-7 h-7"></i>
+        </div>
+        <div class="space-y-1.5">
+          <h3 class="text-base font-extrabold text-white">今日排程為「休息日 (Rest Day)」</h3>
+          <p class="text-xs text-slate-400 max-w-xs mx-auto">肌肉在充分休息與蛋白質補充時進行超補償生長，今天放鬆身心，為下次大重量蓄力！</p>
+        </div>
+        <div class="pt-3 flex flex-col sm:flex-row gap-2.5 justify-center max-w-xs mx-auto">
+          <button id="restDayPickRoutineBtn" class="py-3 px-4 rounded-xl bg-accent-green hover:bg-emerald-400 text-iron-950 text-xs font-black tap-active flex items-center justify-center gap-2 shadow-md shadow-accent-green/20">
+            <i data-lucide="play" class="w-4 h-4 fill-current"></i> 今日想加練？從課表挑選
+          </button>
+          <button id="restDayFreeAddBtn" class="py-3 px-4 rounded-xl bg-iron-800 hover:bg-iron-750 text-slate-200 text-xs font-bold tap-active flex items-center justify-center gap-2">
+            <i data-lucide="plus" class="w-4 h-4 text-accent-green"></i> 自由新增動作
+          </button>
+        </div>
+      </div>
+    `;
+
+    // 綁定休息日按鈕事件
+    document.getElementById('restDayPickRoutineBtn').addEventListener('click', () => switchNavTab('tab-routines'));
+    document.getElementById('restDayFreeAddBtn').addEventListener('click', () => {
+      // 建立一個臨時自訂課表
+      state.activeWorkout = {
+        routineId: null,
+        routineName: '自訂現場訓練',
+        category: '全身',
+        startTime: Date.now(),
+        mobilityChecks: MOBILITY_PROTOCOLS['全身'].map(m => ({ text: m.text, done: false })),
+        exercises: []
+      };
+      saveState();
+      renderWorkoutSheet();
+      openExercisePicker('workout');
+    });
+
+    if (window.lucide) lucide.createIcons();
+    return;
+  }
+
+  // 狀況 B：當天有課表進行中
+  mobilityBox.classList.remove('hidden');
+  finishBtn.classList.remove('opacity-40', 'pointer-events-none');
+  document.getElementById('headerWorkoutTag').textContent = '課表進行中';
   document.getElementById('activeRoutineTitle').textContent = state.activeWorkout.routineName;
 
-  // 2. 更新頂部進度條文字
+  // 計算組數進度
   let totalSetsCount = 0;
   let completedSetsCount = 0;
   state.activeWorkout.exercises.forEach(ex => {
-    ex.sets.forEach(s => {
+    (ex.sets || []).forEach(s => {
       totalSetsCount++;
       if (s.isCompleted) completedSetsCount++;
     });
@@ -362,11 +435,22 @@ function renderWorkoutSheet() {
   const progressPct = totalSetsCount > 0 ? Math.round((completedSetsCount / totalSetsCount) * 100) : 0;
   document.getElementById('headerSetsProgressText').textContent = `${completedSetsCount} / ${totalSetsCount} 組 (${progressPct}%)`;
 
-  // 3. 渲染部位熱身與活動度打卡項目
+  // 渲染活動度熱身
   renderMobilitySection();
 
-  // 4. 渲染動作卡片清單
-  const container = document.getElementById('workoutCardsContainer');
+  // 若課表內無任何動作
+  if (!state.activeWorkout.exercises || state.activeWorkout.exercises.length === 0) {
+    container.innerHTML = `
+      <div class="text-center py-10 bg-iron-900 border border-iron-800 rounded-2xl p-6 space-y-3">
+        <i data-lucide="dumbbell" class="w-8 h-8 text-slate-500 mx-auto"></i>
+        <h3 class="font-extrabold text-white text-sm">課表內目前無動作</h3>
+        <p class="text-xs text-slate-400">點擊下方「＋ 臨時新增動作」加入您今天想做的項目！</p>
+      </div>
+    `;
+    if (window.lucide) lucide.createIcons();
+    return;
+  }
+
   container.innerHTML = '';
 
   state.activeWorkout.exercises.forEach((item, exIdx) => {
@@ -704,11 +788,22 @@ function renderWeeklySplitGrid() {
     `;
 
     btn.addEventListener('click', () => {
-      // 點擊循環切換課表指派
+      // 點擊循環切換課表指派 (休 -> 課表1 -> 課表2... -> 休)
       const routineOptions = [null, ...state.routines.map(r => r.id)];
       const currentIdx = routineOptions.indexOf(state.weeklySplit[d.num]);
       const nextIdx = (currentIdx + 1) % routineOptions.length;
-      state.weeklySplit[d.num] = routineOptions[nextIdx];
+      const nextRoutineId = routineOptions[nextIdx];
+      state.weeklySplit[d.num] = nextRoutineId;
+
+      // 若更動的是今天，同步更新現場訓練狀態
+      if (d.num === currentDay) {
+        if (nextRoutineId) {
+          loadRoutineIntoActiveWorkout(nextRoutineId, false);
+        } else {
+          state.activeWorkout = null;
+        }
+      }
+
       saveState();
       renderWeeklySplitGrid();
       sound.vibrate(20);
@@ -1012,22 +1107,56 @@ function renderPrHonorGrid(prMap) {
   });
 }
 
-// ======================= 9. 動作選擇庫與僅今日替換 (Modals) =======================
+// ======================= 9. 動作選擇庫與自由打字建立動作 (Modals) =======================
 
 function openExercisePicker(mode = 'workout') {
   state.pickerTarget.mode = mode;
   const modal = document.getElementById('exercisePickerModal');
-  renderPickerExerciseList('全部');
+  const searchInput = document.getElementById('pickerSearchOrAddInput');
+  searchInput.value = '';
+  document.getElementById('quickCreateExBtn').classList.add('hidden');
+  document.getElementById('quickCreateCatRow').classList.add('hidden');
+
+  renderPickerExerciseList('全部', '');
   modal.classList.remove('hidden');
+  setTimeout(() => searchInput.focus(), 100);
 }
 
-function renderPickerExerciseList(category = '全部') {
+function renderPickerExerciseList(category = '全部', query = '') {
   const list = document.getElementById('pickerExerciseItemsList');
+  const quickCreateBtn = document.getElementById('quickCreateExBtn');
+  const quickCreateCatRow = document.getElementById('quickCreateCatRow');
   list.innerHTML = '';
 
-  const filtered = category === '全部'
-    ? state.exercises
-    : state.exercises.filter(e => e.category === category);
+  const cleanQuery = query.trim().toLowerCase();
+
+  // 篩選動作
+  const filtered = state.exercises.filter(e => {
+    const matchCat = (category === '全部' || e.category === category);
+    const matchQuery = !cleanQuery || e.name.toLowerCase().includes(cleanQuery);
+    return matchCat && matchQuery;
+  });
+
+  // 如果打字沒有完全符合的動作名稱，顯示自訂建立按鈕與肌群選擇
+  const exactMatch = state.exercises.some(e => e.name.toLowerCase() === cleanQuery);
+  if (cleanQuery && !exactMatch) {
+    quickCreateBtn.classList.remove('hidden');
+    quickCreateBtn.textContent = `＋ 建立`;
+    quickCreateCatRow.classList.remove('hidden');
+  } else {
+    quickCreateBtn.classList.add('hidden');
+    quickCreateCatRow.classList.add('hidden');
+  }
+
+  if (filtered.length === 0) {
+    list.innerHTML = `
+      <div class="text-center py-6 space-y-2">
+        <p class="text-xs text-slate-400">找不到「<strong class="text-white">${query}</strong>」相關動作</p>
+        <p class="text-[11px] text-accent-green font-bold">點擊上方「＋ 建立」立即新增並加入課表！</p>
+      </div>
+    `;
+    return;
+  }
 
   filtered.forEach(ex => {
     const card = document.createElement('div');
@@ -1043,41 +1172,84 @@ function renderPickerExerciseList(category = '全部') {
     `;
 
     card.addEventListener('click', () => {
-      if (state.pickerTarget.mode === 'workout') {
-        const ghost = getExerciseGhostData(ex.id);
-        const defaultW = ghost ? ghost.weight : 40;
-        const defaultR = ghost ? ghost.reps : 8;
-
-        state.activeWorkout.exercises.push({
-          exerciseId: ex.id,
-          isDumbbellEachSide: false,
-          pinNote: ex.pinNote || '',
-          sets: [
-            { id: 's-' + Date.now() + '-1', setType: 'working', weight: defaultW, reps: defaultR, rpe: 8, isCompleted: false },
-            { id: 's-' + Date.now() + '-2', setType: 'working', weight: defaultW, reps: defaultR, rpe: 8, isCompleted: false },
-            { id: 's-' + Date.now() + '-3', setType: 'working', weight: defaultW, reps: defaultR, rpe: 8, isCompleted: false }
-          ]
-        });
-        saveState();
-        renderWorkoutSheet();
-        alertToast(`已將「${ex.name}」加入今日課表`);
-      } else if (state.pickerTarget.mode === 'routine') {
-        state.editingRoutine.exercises.push({
-          exerciseId: ex.id,
-          targetSets: 3,
-          targetReps: 8
-        });
-        renderTemplateExercisesEditor();
-      }
-
-      document.getElementById('exercisePickerModal').classList.add('hidden');
-      sound.vibrate(25);
+      addExerciseToTarget(ex);
     });
 
     list.appendChild(card);
   });
 
   if (window.lucide) lucide.createIcons();
+}
+
+// 將動作加入當前目標 (現場訓練 或 課表範本)
+function addExerciseToTarget(ex) {
+  if (state.pickerTarget.mode === 'workout') {
+    if (!state.activeWorkout) {
+      state.activeWorkout = {
+        routineId: null,
+        routineName: '自訂現場訓練',
+        category: ex.category || '全身',
+        startTime: Date.now(),
+        mobilityChecks: MOBILITY_PROTOCOLS[ex.category] || MOBILITY_PROTOCOLS['全身'],
+        exercises: []
+      };
+    }
+
+    const ghost = getExerciseGhostData(ex.id);
+    const defaultW = ghost ? ghost.weight : 40;
+    const defaultR = ghost ? ghost.reps : 8;
+
+    state.activeWorkout.exercises.push({
+      exerciseId: ex.id,
+      isDumbbellEachSide: false,
+      pinNote: ex.pinNote || '',
+      sets: [
+        { id: 's-' + Date.now() + '-1', setType: 'working', weight: defaultW, reps: defaultR, rpe: 8, isCompleted: false },
+        { id: 's-' + Date.now() + '-2', setType: 'working', weight: defaultW, reps: defaultR, rpe: 8, isCompleted: false },
+        { id: 's-' + Date.now() + '-3', setType: 'working', weight: defaultW, reps: defaultR, rpe: 8, isCompleted: false }
+      ]
+    });
+    saveState();
+    renderWorkoutSheet();
+    alertToast(`已將「${ex.name}」加入現場訓練`);
+  } else if (state.pickerTarget.mode === 'routine') {
+    state.editingRoutine.exercises.push({
+      exerciseId: ex.id,
+      targetSets: 3,
+      targetReps: 8
+    });
+    renderTemplateExercisesEditor();
+    alertToast(`已將「${ex.name}」加入課表範本`);
+  }
+
+  document.getElementById('exercisePickerModal').classList.add('hidden');
+  sound.vibrate(25);
+}
+
+// 自由打字建立全新動作
+function createAndAddCustomExercise() {
+  const input = document.getElementById('pickerSearchOrAddInput');
+  const name = input.value.trim();
+  if (!name) return;
+
+  const category = document.getElementById('quickCreateCatSelect').value || '胸部';
+  const isCompound = document.getElementById('quickCreateCompoundCheck').checked;
+
+  // 檢查是否已存在
+  let existing = state.exercises.find(e => e.name.toLowerCase() === name.toLowerCase());
+  if (!existing) {
+    existing = {
+      id: 'custom-' + Date.now(),
+      name,
+      category,
+      isCompound,
+      pinNote: ''
+    };
+    state.exercises.unshift(existing);
+    saveState();
+  }
+
+  addExerciseToTarget(existing);
 }
 
 // 僅今日臨時替換動作 (Swap for Today)
@@ -1493,14 +1665,35 @@ function setupEventListeners() {
     document.getElementById('swapTodayModal').classList.add('hidden');
   });
 
-  // 動作庫篩選按鈕
+  // 打字搜尋與直接建立動作監聽
+  const pickerInput = document.getElementById('pickerSearchOrAddInput');
+  pickerInput.addEventListener('input', (e) => {
+    const activeCatBtn = document.querySelector('.picker-filter-btn.bg-accent-green');
+    const cat = activeCatBtn ? activeCatBtn.getAttribute('data-cat') : '全部';
+    renderPickerExerciseList(cat, e.target.value);
+  });
+
+  pickerInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      createAndAddCustomExercise();
+    }
+  });
+
+  document.getElementById('quickCreateExBtn').addEventListener('click', () => {
+    createAndAddCustomExercise();
+  });
+
+  // 動作庫肌群篩選按鈕
   document.querySelectorAll('.picker-filter-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.picker-filter-btn').forEach(b => {
         b.className = 'picker-filter-btn px-3 py-1 rounded-full text-xs font-bold bg-iron-800 text-slate-300';
       });
       btn.className = 'picker-filter-btn px-3 py-1 rounded-full text-xs font-bold bg-accent-green text-iron-950';
-      renderPickerExerciseList(btn.getAttribute('data-cat'));
+      const cat = btn.getAttribute('data-cat');
+      const query = document.getElementById('pickerSearchOrAddInput').value;
+      renderPickerExerciseList(cat, query);
     });
   });
 

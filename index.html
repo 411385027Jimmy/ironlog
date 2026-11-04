@@ -439,6 +439,33 @@
         </button>
       </div>
 
+      <!-- 搜尋與快速打字建立自訂動作輸入列 -->
+      <div class="space-y-2">
+        <div class="relative flex items-center">
+          <input id="pickerSearchOrAddInput" type="text" placeholder="🔍 搜尋動作，或直接打字建立新動作..." 
+            class="w-full bg-iron-950 border border-iron-750 focus:border-accent-green rounded-xl py-2.5 pl-3 pr-20 text-xs text-white focus:outline-none placeholder-slate-500">
+          <button id="quickCreateExBtn" class="absolute right-1 px-2.5 py-1.5 rounded-lg bg-accent-green hover:bg-emerald-400 text-iron-950 text-xs font-black hidden tap-active">
+            ＋ 建立
+          </button>
+        </div>
+        <!-- 建立自訂動作時的肌群快速選擇 (預設隱藏，打字未找到時出現) -->
+        <div id="quickCreateCatRow" class="hidden flex items-center gap-2 text-xs bg-iron-950 p-2 rounded-xl border border-iron-800">
+          <span class="text-slate-400 text-[11px] shrink-0">所屬部位:</span>
+          <select id="quickCreateCatSelect" class="bg-iron-900 border border-iron-750 text-slate-200 text-xs rounded-lg px-2 py-1 focus:outline-none">
+            <option value="胸部">胸部</option>
+            <option value="背部">背部</option>
+            <option value="腿部">腿部</option>
+            <option value="肩部">肩部</option>
+            <option value="手臂">手臂</option>
+            <option value="核心">核心</option>
+          </select>
+          <label class="flex items-center gap-1 text-[11px] text-slate-400 cursor-pointer">
+            <input type="checkbox" id="quickCreateCompoundCheck" class="rounded border-iron-700 bg-iron-900 text-accent-green">
+            <span>大主項(複合)</span>
+          </label>
+        </div>
+      </div>
+
       <!-- 肌群篩選列 -->
       <div class="flex gap-1.5 overflow-x-auto custom-scrollbar pb-1" id="pickerFilterRow">
         <button data-cat="全部" class="picker-filter-btn px-3 py-1 rounded-full text-xs font-bold bg-accent-green text-iron-950">全部</button>
@@ -478,7 +505,7 @@
   </div>
 
   <!-- 應用程式核心邏輯腳本 (附帶版本快取破除機制) -->
-  <script src="./app.js?v=4.0"></script>
+  <script src="./app.js?v=4.1"></script>
 
   <!-- Service Worker 註冊與自動更新 -->
   <script>
