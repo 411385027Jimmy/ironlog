@@ -1,10 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-TW" class="dark">
+
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>IronLog - 極致現場訓練與自訂課表</title>
-  
+
   <!-- PWA Meta -->
   <link rel="manifest" href="./manifest.json">
   <meta name="theme-color" content="#090d16">
@@ -13,7 +15,7 @@
   <meta name="apple-mobile-web-app-title" content="IronLog">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
   <link rel="icon" type="image/svg+xml" href="./icons/icon.svg">
-  
+
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -63,53 +65,76 @@
       padding-top: env(safe-area-inset-top);
       padding-bottom: env(safe-area-inset-bottom);
     }
-    input, select, textarea {
+
+    input,
+    select,
+    textarea {
       user-select: auto;
       -webkit-user-select: auto;
     }
-    input[type=number]::-webkit-inner-spin-button, 
-    input[type=number]::-webkit-outer-spin-button { 
-      -webkit-appearance: none; 
-      margin: 0; 
+
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
     }
+
     input[type=number] {
       -moz-appearance: textfield;
     }
+
     .custom-scrollbar::-webkit-scrollbar {
       display: none;
     }
+
     .custom-scrollbar {
       -ms-overflow-style: none;
       scrollbar-width: none;
     }
+
     .tap-active:active {
       transform: scale(0.96);
       transition: transform 0.06s ease;
     }
+
     @keyframes checkPop {
-      0% { transform: scale(0.85); }
-      50% { transform: scale(1.15); }
-      100% { transform: scale(1.0); }
+      0% {
+        transform: scale(0.85);
+      }
+
+      50% {
+        transform: scale(1.15);
+      }
+
+      100% {
+        transform: scale(1.0);
+      }
     }
+
     .check-pop {
       animation: checkPop 0.22s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
   </style>
 </head>
-<body class="bg-iron-950 text-slate-100 min-h-screen flex flex-col font-sans antialiased overflow-x-hidden selection:bg-accent-green selection:text-iron-950">
+
+<body
+  class="bg-iron-950 text-slate-100 min-h-screen flex flex-col font-sans antialiased overflow-x-hidden selection:bg-accent-green selection:text-iron-950">
 
   <!-- ================= 頂部狀態列：極簡品牌 + 獨立手動計時器 + 今日組數進度 ================= -->
   <header class="sticky top-0 z-40 bg-iron-900/95 backdrop-blur-md border-b border-iron-800/80 px-4 py-2.5">
     <div class="max-w-xl mx-auto flex items-center justify-between">
       <!-- 品牌 Logo 與 今日課表快捷 -->
       <div class="flex items-center space-x-2">
-        <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-accent-green to-emerald-400 flex items-center justify-center shadow-md shadow-accent-green/20">
+        <div
+          class="w-8 h-8 rounded-xl bg-gradient-to-tr from-accent-green to-emerald-400 flex items-center justify-center shadow-md shadow-accent-green/20">
           <i data-lucide="dumbbell" class="w-4 h-4 text-iron-950 stroke-[2.5]"></i>
         </div>
         <div>
           <div class="flex items-center gap-1.5">
-            <span class="font-extrabold tracking-wider text-sm bg-gradient-to-r from-white via-slate-100 to-slate-400 bg-clip-text text-transparent">IRONLOG</span>
-            <span id="headerWorkoutTag" class="text-[9px] font-bold px-1.5 py-0.2 rounded bg-iron-800 text-accent-green border border-iron-700">課表進行中</span>
+            <span
+              class="font-extrabold tracking-wider text-sm bg-gradient-to-r from-white via-slate-100 to-slate-400 bg-clip-text text-transparent">IRONLOG</span>
+            <span id="headerWorkoutTag"
+              class="text-[9px] font-bold px-1.5 py-0.2 rounded bg-iron-800 text-accent-green border border-iron-700">課表進行中</span>
           </div>
           <!-- 今日組數進度提示 -->
           <div class="flex items-center gap-1.5 text-[10px] text-slate-400 font-mono">
@@ -120,11 +145,14 @@
 
       <!-- 獨立手動組間休息計時器 (手動點擊啟動，不干擾連續動作) -->
       <div class="flex items-center gap-1.5 bg-iron-850 border border-iron-750 px-2.5 py-1.5 rounded-full shadow-inner">
-        <button id="manualTimerToggleBtn" class="flex items-center gap-1 text-xs font-mono font-bold text-slate-200 hover:text-accent-green transition tap-active">
+        <button id="manualTimerToggleBtn"
+          class="flex items-center gap-1 text-xs font-mono font-bold text-slate-200 hover:text-accent-green transition tap-active">
           <i data-lucide="timer" class="w-3.5 h-3.5 text-accent-green"></i>
           <span id="manualTimerDisplay">01:30</span>
         </button>
-        <button id="timerPlus30Btn" class="text-[10px] font-mono text-slate-400 hover:text-accent-green px-1.5 py-0.5 rounded bg-iron-800 tap-active" title="增加30秒">
+        <button id="timerPlus30Btn"
+          class="text-[10px] font-mono text-slate-400 hover:text-accent-green px-1.5 py-0.5 rounded bg-iron-800 tap-active"
+          title="增加30秒">
           +30s
         </button>
         <button id="timerResetBtn" class="text-slate-500 hover:text-rose-400 p-0.5 tap-active" title="重置/關閉">
@@ -141,17 +169,20 @@
     <section id="tab-workout" class="tab-pane space-y-4 block">
 
       <!-- 今日課表排程看板卡片 -->
-      <div id="todaySplitBanner" class="bg-iron-900 border border-iron-800 rounded-2xl p-3.5 flex items-center justify-between shadow-sm">
+      <div id="todaySplitBanner"
+        class="bg-iron-900 border border-iron-800 rounded-2xl p-3.5 flex items-center justify-between shadow-sm">
         <div class="space-y-0.5">
           <div class="flex items-center gap-2">
             <span class="text-xs font-bold text-slate-400 flex items-center gap-1">
               <i data-lucide="calendar" class="w-3.5 h-3.5 text-accent-amber"></i> 今日排程
             </span>
-            <span id="todayDayNameBadge" class="text-[10px] font-mono px-2 py-0.2 rounded bg-iron-800 text-slate-300">週三</span>
+            <span id="todayDayNameBadge"
+              class="text-[10px] font-mono px-2 py-0.2 rounded bg-iron-800 text-slate-300">週三</span>
           </div>
           <h2 id="activeRoutineTitle" class="text-sm font-extrabold text-white">推 A (胸・肩・三頭)</h2>
         </div>
-        <button id="switchRoutineQuickBtn" class="px-3 py-1.5 rounded-xl bg-iron-800 hover:bg-iron-750 text-xs font-bold text-accent-green flex items-center gap-1 tap-active">
+        <button id="switchRoutineQuickBtn"
+          class="px-3 py-1.5 rounded-xl bg-iron-800 hover:bg-iron-750 text-xs font-bold text-accent-green flex items-center gap-1 tap-active">
           <i data-lucide="shuffle" class="w-3.5 h-3.5"></i> 切換課表
         </button>
       </div>
@@ -162,7 +193,8 @@
           <div class="flex items-center gap-2">
             <i data-lucide="flame" class="w-4 h-4 text-orange-500"></i>
             <h3 class="text-xs font-bold text-white uppercase tracking-wider">部位活動度熱身推薦</h3>
-            <span id="warmupCategoryTag" class="text-[10px] px-1.5 py-0.2 rounded bg-iron-800 text-orange-400 font-mono">胸肩</span>
+            <span id="warmupCategoryTag"
+              class="text-[10px] px-1.5 py-0.2 rounded bg-iron-800 text-orange-400 font-mono">胸肩</span>
           </div>
           <button id="toggleMobilityBtn" class="text-[11px] text-slate-400 hover:text-white flex items-center gap-0.5">
             <span id="toggleMobilityText">收起</span>
@@ -182,12 +214,14 @@
 
       <!-- 底部動作操作區 -->
       <div class="grid grid-cols-2 gap-3 pt-2">
-        <button id="openAddExToWorkoutBtn" class="tap-active py-3.5 px-4 rounded-xl bg-iron-900 border border-iron-750 hover:border-accent-green/50 text-slate-200 text-xs font-bold flex items-center justify-center gap-2 shadow-sm">
+        <button id="openAddExToWorkoutBtn"
+          class="tap-active py-3.5 px-4 rounded-xl bg-iron-900 border border-iron-750 hover:border-accent-green/50 text-slate-200 text-xs font-bold flex items-center justify-center gap-2 shadow-sm">
           <i data-lucide="plus" class="w-4 h-4 text-accent-green"></i>
           臨時新增動作
         </button>
 
-        <button id="finishWorkoutBtn" class="tap-active py-3.5 px-4 rounded-xl bg-gradient-to-r from-accent-green to-emerald-600 hover:from-emerald-400 hover:to-accent-green text-iron-950 text-xs font-black flex items-center justify-center gap-2 shadow-lg shadow-accent-green/20">
+        <button id="finishWorkoutBtn"
+          class="tap-active py-3.5 px-4 rounded-xl bg-gradient-to-r from-accent-green to-emerald-600 hover:from-emerald-400 hover:to-accent-green text-iron-950 text-xs font-black flex items-center justify-center gap-2 shadow-lg shadow-accent-green/20">
           <i data-lucide="check" class="w-4 h-4 stroke-[3]"></i>
           完成今日訓練 (歸檔)
         </button>
@@ -205,7 +239,8 @@
           </h2>
           <p class="text-[11px] text-slate-400">安排週一至週日課表，現場訓練一鍵載入</p>
         </div>
-        <button id="createNewRoutineBtn" class="px-3 py-1.5 rounded-xl bg-accent-green hover:bg-emerald-400 text-iron-950 text-xs font-bold flex items-center gap-1 tap-active">
+        <button id="createNewRoutineBtn"
+          class="px-3 py-1.5 rounded-xl bg-accent-green hover:bg-emerald-400 text-iron-950 text-xs font-bold flex items-center gap-1 tap-active">
           <i data-lucide="plus" class="w-3.5 h-3.5"></i> 新建課表
         </button>
       </div>
@@ -304,7 +339,8 @@
             <i data-lucide="line-chart" class="w-3.5 h-3.5 text-accent-green"></i>
             肌力進步曲線 (e1RM)
           </span>
-          <select id="analyticsExerciseSelect" class="bg-iron-950 border border-iron-750 text-slate-200 text-xs font-bold rounded-lg px-2 py-1 focus:outline-none">
+          <select id="analyticsExerciseSelect"
+            class="bg-iron-950 border border-iron-750 text-slate-200 text-xs font-bold rounded-lg px-2 py-1 focus:outline-none">
             <!-- 動態填入主要動作 -->
           </select>
         </div>
@@ -342,10 +378,12 @@
       <div class="bg-iron-900 border border-iron-800 rounded-2xl p-4 space-y-3">
         <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">資料備份與還原 (離線自主)</span>
         <div class="grid grid-cols-2 gap-2">
-          <button id="exportJsonBackupBtn" class="tap-active py-2.5 px-3 bg-iron-800 hover:bg-iron-750 border border-iron-700 rounded-xl text-xs font-bold text-slate-200 flex items-center justify-center gap-1.5">
+          <button id="exportJsonBackupBtn"
+            class="tap-active py-2.5 px-3 bg-iron-800 hover:bg-iron-750 border border-iron-700 rounded-xl text-xs font-bold text-slate-200 flex items-center justify-center gap-1.5">
             <i data-lucide="download" class="w-3.5 h-3.5 text-accent-green"></i> 匯出備份 (JSON)
           </button>
-          <label class="tap-active py-2.5 px-3 bg-iron-800 hover:bg-iron-750 border border-iron-700 rounded-xl text-xs font-bold text-slate-200 flex items-center justify-center gap-1.5 cursor-pointer">
+          <label
+            class="tap-active py-2.5 px-3 bg-iron-800 hover:bg-iron-750 border border-iron-700 rounded-xl text-xs font-bold text-slate-200 flex items-center justify-center gap-1.5 cursor-pointer">
             <i data-lucide="upload" class="w-3.5 h-3.5 text-accent-blue"></i> 匯入還原
             <input type="file" id="importJsonBackupInput" accept=".json" class="hidden">
           </label>
@@ -356,19 +394,23 @@
   </main>
 
   <!-- ================= 底部導航欄 (極簡 3 大分頁) ================= -->
-  <nav class="fixed bottom-0 left-0 right-0 z-40 bg-iron-900/95 backdrop-blur-lg border-t border-iron-800/80 px-4 py-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+  <nav
+    class="fixed bottom-0 left-0 right-0 z-40 bg-iron-900/95 backdrop-blur-lg border-t border-iron-800/80 px-4 py-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
     <div class="max-w-xl mx-auto grid grid-cols-3 gap-2">
-      <button data-nav="tab-workout" class="nav-tab-btn active flex flex-col items-center justify-center py-1.5 rounded-xl text-accent-green transition tap-active">
+      <button data-nav="tab-workout"
+        class="nav-tab-btn active flex flex-col items-center justify-center py-1.5 rounded-xl text-accent-green transition tap-active">
         <i data-lucide="clipboard-check" class="w-5 h-5"></i>
         <span class="text-[10px] font-bold mt-1">現場訓練</span>
       </button>
 
-      <button data-nav="tab-routines" class="nav-tab-btn flex flex-col items-center justify-center py-1.5 rounded-xl text-slate-400 hover:text-slate-200 transition tap-active">
+      <button data-nav="tab-routines"
+        class="nav-tab-btn flex flex-col items-center justify-center py-1.5 rounded-xl text-slate-400 hover:text-slate-200 transition tap-active">
         <i data-lucide="calendar-days" class="w-5 h-5"></i>
         <span class="text-[10px] font-bold mt-1">課表排程</span>
       </button>
 
-      <button data-nav="tab-analytics" class="nav-tab-btn flex flex-col items-center justify-center py-1.5 rounded-xl text-slate-400 hover:text-slate-200 transition tap-active">
+      <button data-nav="tab-analytics"
+        class="nav-tab-btn flex flex-col items-center justify-center py-1.5 rounded-xl text-slate-400 hover:text-slate-200 transition tap-active">
         <i data-lucide="bar-chart-2" class="w-5 h-5"></i>
         <span class="text-[10px] font-bold mt-1">數據分析</span>
       </button>
@@ -377,7 +419,8 @@
 
   <!-- ================= 彈出抽屜 1: 課表編輯/新建 Modal (Routine Editor) ================= -->
   <div id="routineEditorModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col justify-end hidden">
-    <div class="bg-iron-900 border-t border-iron-700 rounded-t-3xl max-w-xl w-full mx-auto p-5 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar">
+    <div
+      class="bg-iron-900 border-t border-iron-700 rounded-t-3xl max-w-xl w-full mx-auto p-5 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar">
       <div class="flex items-center justify-between pb-2 border-b border-iron-800">
         <h3 id="routineEditorModalTitle" class="font-extrabold text-white text-base flex items-center gap-2">
           <i data-lucide="edit-3" class="w-4 h-4 text-accent-green"></i> 編輯課表範本
@@ -391,12 +434,13 @@
       <div class="space-y-3">
         <div>
           <label class="block text-xs font-semibold text-slate-400 mb-1">課表名稱</label>
-          <input id="routineNameInput" type="text" placeholder="例如：推 A (Push A)" 
+          <input id="routineNameInput" type="text" placeholder="例如：推 A (Push A)"
             class="w-full bg-iron-950 border border-iron-750 focus:border-accent-green rounded-xl py-2.5 px-3 text-sm text-white focus:outline-none">
         </div>
         <div>
           <label class="block text-xs font-semibold text-slate-400 mb-1">主要刺激肌群 (自動匹配熱身)</label>
-          <select id="routineCategorySelect" class="w-full bg-iron-950 border border-iron-750 focus:border-accent-green rounded-xl py-2.5 px-3 text-xs text-white focus:outline-none">
+          <select id="routineCategorySelect"
+            class="w-full bg-iron-950 border border-iron-750 focus:border-accent-green rounded-xl py-2.5 px-3 text-xs text-white focus:outline-none">
             <option value="胸部">胸部為主 (胸・肩・三頭)</option>
             <option value="背部">背部為主 (背・後三角・二頭)</option>
             <option value="腿部">腿部為主 (股四頭・臀腿・膕旁)</option>
@@ -410,7 +454,8 @@
       <div class="space-y-2">
         <div class="flex items-center justify-between text-xs">
           <span class="font-bold text-slate-300">課表動作列表</span>
-          <button id="addExerciseToTemplateBtn" class="text-accent-green hover:underline font-bold text-xs flex items-center gap-1">
+          <button id="addExerciseToTemplateBtn"
+            class="text-accent-green hover:underline font-bold text-xs flex items-center gap-1">
             <i data-lucide="plus" class="w-3.5 h-3.5"></i> 加入動作
           </button>
         </div>
@@ -421,15 +466,19 @@
       </div>
 
       <div class="flex gap-2 pt-2 border-t border-iron-800">
-        <button id="cancelRoutineEditBtn" class="flex-1 py-3 rounded-xl bg-iron-800 text-slate-300 text-xs font-bold tap-active">取消</button>
-        <button id="saveRoutineTemplateBtn" class="flex-1 py-3 rounded-xl bg-accent-green text-iron-950 text-xs font-black tap-active">儲存課表</button>
+        <button id="cancelRoutineEditBtn"
+          class="flex-1 py-3 rounded-xl bg-iron-800 text-slate-300 text-xs font-bold tap-active">取消</button>
+        <button id="saveRoutineTemplateBtn"
+          class="flex-1 py-3 rounded-xl bg-accent-green text-iron-950 text-xs font-black tap-active">儲存課表</button>
       </div>
     </div>
   </div>
 
   <!-- ================= 彈出抽屜 2: 動作選擇庫 (Exercise Library Modal) ================= -->
-  <div id="exercisePickerModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col justify-end hidden">
-    <div class="bg-iron-900 border-t border-iron-700 rounded-t-3xl max-w-xl w-full mx-auto p-5 space-y-3.5 shadow-2xl max-h-[85vh] overflow-y-auto custom-scrollbar">
+  <div id="exercisePickerModal"
+    class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col justify-end hidden">
+    <div
+      class="bg-iron-900 border-t border-iron-700 rounded-t-3xl max-w-xl w-full mx-auto p-5 space-y-3.5 shadow-2xl max-h-[85vh] overflow-y-auto custom-scrollbar">
       <div class="flex items-center justify-between pb-2 border-b border-iron-800">
         <h3 class="font-extrabold text-white text-base flex items-center gap-2">
           <i data-lucide="dumbbell" class="w-4 h-4 text-accent-green"></i> 選擇訓練動作
@@ -442,16 +491,19 @@
       <!-- 搜尋與快速打字建立自訂動作輸入列 -->
       <div class="space-y-2">
         <div class="relative flex items-center">
-          <input id="pickerSearchOrAddInput" type="text" placeholder="🔍 搜尋動作，或直接打字建立新動作..." 
+          <input id="pickerSearchOrAddInput" type="text" placeholder="🔍 搜尋動作，或直接打字建立新動作..."
             class="w-full bg-iron-950 border border-iron-750 focus:border-accent-green rounded-xl py-2.5 pl-3 pr-20 text-xs text-white focus:outline-none placeholder-slate-500">
-          <button id="quickCreateExBtn" class="absolute right-1 px-2.5 py-1.5 rounded-lg bg-accent-green hover:bg-emerald-400 text-iron-950 text-xs font-black hidden tap-active">
+          <button id="quickCreateExBtn"
+            class="absolute right-1 px-2.5 py-1.5 rounded-lg bg-accent-green hover:bg-emerald-400 text-iron-950 text-xs font-black hidden tap-active">
             ＋ 建立
           </button>
         </div>
         <!-- 建立自訂動作時的肌群快速選擇 (預設隱藏，打字未找到時出現) -->
-        <div id="quickCreateCatRow" class="hidden flex items-center gap-2 text-xs bg-iron-950 p-2 rounded-xl border border-iron-800">
+        <div id="quickCreateCatRow"
+          class="hidden flex items-center gap-2 text-xs bg-iron-950 p-2 rounded-xl border border-iron-800">
           <span class="text-slate-400 text-[11px] shrink-0">所屬部位:</span>
-          <select id="quickCreateCatSelect" class="bg-iron-900 border border-iron-750 text-slate-200 text-xs rounded-lg px-2 py-1 focus:outline-none">
+          <select id="quickCreateCatSelect"
+            class="bg-iron-900 border border-iron-750 text-slate-200 text-xs rounded-lg px-2 py-1 focus:outline-none">
             <option value="胸部">胸部</option>
             <option value="背部">背部</option>
             <option value="腿部">腿部</option>
@@ -460,7 +512,8 @@
             <option value="核心">核心</option>
           </select>
           <label class="flex items-center gap-1 text-[11px] text-slate-400 cursor-pointer">
-            <input type="checkbox" id="quickCreateCompoundCheck" class="rounded border-iron-700 bg-iron-900 text-accent-green">
+            <input type="checkbox" id="quickCreateCompoundCheck"
+              class="rounded border-iron-700 bg-iron-900 text-accent-green">
             <span>大主項(複合)</span>
           </label>
         </div>
@@ -468,12 +521,18 @@
 
       <!-- 肌群篩選列 -->
       <div class="flex gap-1.5 overflow-x-auto custom-scrollbar pb-1" id="pickerFilterRow">
-        <button data-cat="全部" class="picker-filter-btn px-3 py-1 rounded-full text-xs font-bold bg-accent-green text-iron-950">全部</button>
-        <button data-cat="胸部" class="picker-filter-btn px-3 py-1 rounded-full text-xs font-bold bg-iron-800 text-slate-300">胸部</button>
-        <button data-cat="背部" class="picker-filter-btn px-3 py-1 rounded-full text-xs font-bold bg-iron-800 text-slate-300">背部</button>
-        <button data-cat="腿部" class="picker-filter-btn px-3 py-1 rounded-full text-xs font-bold bg-iron-800 text-slate-300">腿部</button>
-        <button data-cat="肩部" class="picker-filter-btn px-3 py-1 rounded-full text-xs font-bold bg-iron-800 text-slate-300">肩部</button>
-        <button data-cat="手臂" class="picker-filter-btn px-3 py-1 rounded-full text-xs font-bold bg-iron-800 text-slate-300">手臂</button>
+        <button data-cat="全部"
+          class="picker-filter-btn px-3 py-1 rounded-full text-xs font-bold bg-accent-green text-iron-950">全部</button>
+        <button data-cat="胸部"
+          class="picker-filter-btn px-3 py-1 rounded-full text-xs font-bold bg-iron-800 text-slate-300">胸部</button>
+        <button data-cat="背部"
+          class="picker-filter-btn px-3 py-1 rounded-full text-xs font-bold bg-iron-800 text-slate-300">背部</button>
+        <button data-cat="腿部"
+          class="picker-filter-btn px-3 py-1 rounded-full text-xs font-bold bg-iron-800 text-slate-300">腿部</button>
+        <button data-cat="肩部"
+          class="picker-filter-btn px-3 py-1 rounded-full text-xs font-bold bg-iron-800 text-slate-300">肩部</button>
+        <button data-cat="手臂"
+          class="picker-filter-btn px-3 py-1 rounded-full text-xs font-bold bg-iron-800 text-slate-300">手臂</button>
       </div>
 
       <!-- 動作清單 -->
@@ -485,7 +544,8 @@
 
   <!-- ================= 彈出抽屜 3: 僅今日替換動作 (Swap for Today Modal) ================= -->
   <div id="swapTodayModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col justify-end hidden">
-    <div class="bg-iron-900 border-t border-iron-700 rounded-t-3xl max-w-xl w-full mx-auto p-5 space-y-4 shadow-2xl max-h-[80vh] overflow-y-auto custom-scrollbar">
+    <div
+      class="bg-iron-900 border-t border-iron-700 rounded-t-3xl max-w-xl w-full mx-auto p-5 space-y-4 shadow-2xl max-h-[80vh] overflow-y-auto custom-scrollbar">
       <div class="flex items-center justify-between pb-2 border-b border-iron-800">
         <div>
           <h3 class="font-extrabold text-white text-base flex items-center gap-1.5">
@@ -531,4 +591,5 @@
     }
   </script>
 </body>
+
 </html>
