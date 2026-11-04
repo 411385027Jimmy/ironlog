@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>IronLog Pro - 極簡高強度重訓工作表</title>
+  <title>IronLog - 極致現場訓練與自訂課表</title>
   
   <!-- PWA Meta -->
   <link rel="manifest" href="./manifest.json">
@@ -31,13 +31,13 @@
               700: '#2d3854',
               600: '#3e4d73',
             },
-            hevy: {
+            accent: {
               green: '#10b981',
               greenDark: '#059669',
               amber: '#f59e0b',
               blue: '#3b82f6',
               purple: '#8b5cf6',
-              red: '#ef4444'
+              rose: '#f43f5e'
             }
           },
           fontFamily: {
@@ -51,11 +51,10 @@
   <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
 
-  <!-- Chart.js CDN for Pro Analytics -->
+  <!-- Chart.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
-    /* iOS & Android 觸控防抖與沉浸體驗 */
     body {
       touch-action: manipulation;
       -webkit-tap-highlight-color: transparent;
@@ -83,49 +82,53 @@
       -ms-overflow-style: none;
       scrollbar-width: none;
     }
-    /* 點擊反饋動畫 */
     .tap-active:active {
       transform: scale(0.96);
-      transition: transform 0.08s ease;
+      transition: transform 0.06s ease;
     }
-    /* 打勾完成組動畫 */
     @keyframes checkPop {
-      0% { transform: scale(0.8); }
+      0% { transform: scale(0.85); }
       50% { transform: scale(1.15); }
       100% { transform: scale(1.0); }
     }
     .check-pop {
-      animation: checkPop 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      animation: checkPop 0.22s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
   </style>
 </head>
-<body class="bg-iron-950 text-slate-100 min-h-screen flex flex-col font-sans antialiased overflow-x-hidden selection:bg-hevy-green selection:text-iron-950">
+<body class="bg-iron-950 text-slate-100 min-h-screen flex flex-col font-sans antialiased overflow-x-hidden selection:bg-accent-green selection:text-iron-950">
 
-  <!-- ================= 頂部狀態列：極簡品牌 + 常駐智慧計時器 ================= -->
+  <!-- ================= 頂部狀態列：極簡品牌 + 獨立手動計時器 + 今日組數進度 ================= -->
   <header class="sticky top-0 z-40 bg-iron-900/95 backdrop-blur-md border-b border-iron-800/80 px-4 py-2.5">
     <div class="max-w-xl mx-auto flex items-center justify-between">
-      <!-- 品牌 Logo -->
+      <!-- 品牌 Logo 與 今日課表快捷 -->
       <div class="flex items-center space-x-2">
-        <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-hevy-green to-emerald-300 flex items-center justify-center shadow-md shadow-hevy-green/20">
+        <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-accent-green to-emerald-400 flex items-center justify-center shadow-md shadow-accent-green/20">
           <i data-lucide="dumbbell" class="w-4 h-4 text-iron-950 stroke-[2.5]"></i>
         </div>
         <div>
-          <span class="font-extrabold tracking-wider text-sm bg-gradient-to-r from-white via-slate-100 to-slate-400 bg-clip-text text-transparent">IRONLOG</span>
-          <span class="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-hevy-green/15 text-hevy-green ml-1 border border-hevy-green/30">PRO</span>
+          <div class="flex items-center gap-1.5">
+            <span class="font-extrabold tracking-wider text-sm bg-gradient-to-r from-white via-slate-100 to-slate-400 bg-clip-text text-transparent">IRONLOG</span>
+            <span id="headerWorkoutTag" class="text-[9px] font-bold px-1.5 py-0.2 rounded bg-iron-800 text-accent-green border border-iron-700">課表進行中</span>
+          </div>
+          <!-- 今日組數進度提示 -->
+          <div class="flex items-center gap-1.5 text-[10px] text-slate-400 font-mono">
+            <span id="headerSetsProgressText">0 / 0 組 (0%)</span>
+          </div>
         </div>
       </div>
 
-      <!-- 常駐頂部智慧組間休息計時器膠囊 (Hevy 經典圓環/膠囊樣式) -->
-      <div id="restTimerWidget" class="flex items-center gap-2 bg-iron-850 border border-iron-750 px-3 py-1.5 rounded-full shadow-inner transition-colors">
-        <button id="timerToggleBtn" class="flex items-center gap-1.5 text-xs font-mono font-bold text-slate-300 hover:text-white transition">
-          <i data-lucide="timer" class="w-3.5 h-3.5 text-hevy-green animate-pulse"></i>
-          <span id="timerDisplay">00:00</span>
+      <!-- 獨立手動組間休息計時器 (手動點擊啟動，不干擾連續動作) -->
+      <div class="flex items-center gap-1.5 bg-iron-850 border border-iron-750 px-2.5 py-1.5 rounded-full shadow-inner">
+        <button id="manualTimerToggleBtn" class="flex items-center gap-1 text-xs font-mono font-bold text-slate-200 hover:text-accent-green transition tap-active">
+          <i data-lucide="timer" class="w-3.5 h-3.5 text-accent-green"></i>
+          <span id="manualTimerDisplay">01:30</span>
         </button>
-        <button id="timerQuickPlusBtn" class="text-[10px] font-mono text-slate-400 hover:text-hevy-green px-1 py-0.5 rounded bg-iron-800" title="+30秒">
+        <button id="timerPlus30Btn" class="text-[10px] font-mono text-slate-400 hover:text-accent-green px-1.5 py-0.5 rounded bg-iron-800 tap-active" title="增加30秒">
           +30s
         </button>
-        <button id="timerResetBtn" class="text-slate-500 hover:text-rose-400 p-0.5" title="停止計時">
-          <i data-lucide="square" class="w-3 h-3"></i>
+        <button id="timerResetBtn" class="text-slate-500 hover:text-rose-400 p-0.5 tap-active" title="重置/關閉">
+          <i data-lucide="rotate-ccw" class="w-3 h-3"></i>
         </button>
       </div>
     </div>
@@ -134,70 +137,163 @@
   <!-- ================= 主內容視圖容器 ================= -->
   <main class="flex-1 max-w-xl w-full mx-auto p-4 pb-28">
 
-    <!-- ================= TAB 1: 訓練工作表 (Hevy / Strong Clean Flow) ================= -->
+    <!-- ================= TAB 1: 現場訓練工作表 (Workout Sheet) ================= -->
     <section id="tab-workout" class="tab-pane space-y-4 block">
 
-      <!-- 今日訓練狀態與肌群恢復快速走馬燈 (Fitbod 膠囊) -->
-      <div class="space-y-2">
-        <div class="flex items-center justify-between text-xs">
-          <span class="font-bold text-slate-300 flex items-center gap-1.5">
-            <i data-lucide="activity" class="w-3.5 h-3.5 text-hevy-green"></i> 今日訓練動態
-          </span>
-          <span id="todaySummaryStats" class="text-slate-400 font-mono text-[11px]">0 組 • 0 kg 容量</span>
+      <!-- 今日課表排程看板卡片 -->
+      <div id="todaySplitBanner" class="bg-iron-900 border border-iron-800 rounded-2xl p-3.5 flex items-center justify-between shadow-sm">
+        <div class="space-y-0.5">
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-bold text-slate-400 flex items-center gap-1">
+              <i data-lucide="calendar" class="w-3.5 h-3.5 text-accent-amber"></i> 今日排程
+            </span>
+            <span id="todayDayNameBadge" class="text-[10px] font-mono px-2 py-0.2 rounded bg-iron-800 text-slate-300">週三</span>
+          </div>
+          <h2 id="activeRoutineTitle" class="text-sm font-extrabold text-white">推 A (胸・肩・三頭)</h2>
+        </div>
+        <button id="switchRoutineQuickBtn" class="px-3 py-1.5 rounded-xl bg-iron-800 hover:bg-iron-750 text-xs font-bold text-accent-green flex items-center gap-1 tap-active">
+          <i data-lucide="shuffle" class="w-3.5 h-3.5"></i> 切換課表
+        </button>
+      </div>
+
+      <!-- 動態部位熱身與活動度打卡項目 (胸/背/腿/肩專屬) -->
+      <div id="mobilityWarmupBox" class="bg-iron-900/90 border border-iron-800 rounded-2xl p-3.5 space-y-2">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <i data-lucide="flame" class="w-4 h-4 text-orange-500"></i>
+            <h3 class="text-xs font-bold text-white uppercase tracking-wider">部位活動度熱身推薦</h3>
+            <span id="warmupCategoryTag" class="text-[10px] px-1.5 py-0.2 rounded bg-iron-800 text-orange-400 font-mono">胸肩</span>
+          </div>
+          <button id="toggleMobilityBtn" class="text-[11px] text-slate-400 hover:text-white flex items-center gap-0.5">
+            <span id="toggleMobilityText">收起</span>
+            <i data-lucide="chevron-up" class="w-3.5 h-3.5" id="toggleMobilityIcon"></i>
+          </button>
         </div>
 
-        <!-- 橫向滑動肌群恢復膠囊 -->
-        <div id="quickRecoveryScroll" class="flex gap-2 overflow-x-auto custom-scrollbar py-0.5">
-          <!-- 動態插入肌群恢復膠囊，例如: [胸部 100%] [腿部 60%] -->
+        <div id="mobilityItemsList" class="space-y-1.5 pt-0.5">
+          <!-- 動態插入 2 個打卡項目，例如：彈力帶肩外旋 x 15、胸椎伸展 x 30s -->
         </div>
       </div>
 
-      <!-- 今日訓練動作工作表容器 (動態渲染一張張卡片) -->
-      <div id="workoutSheetsContainer" class="space-y-4">
-        <!-- 動態渲染每個動作的卡片，包含組別表格清單 -->
+      <!-- 今日訓練動作卡片清單 (Workout Sheets) -->
+      <div id="workoutCardsContainer" class="space-y-4">
+        <!-- 動態渲染每個動作的卡片、組別、常駐備註與快填欄位 -->
       </div>
 
-      <!-- 底部工作表動作操作列 -->
+      <!-- 底部動作操作區 -->
       <div class="grid grid-cols-2 gap-3 pt-2">
-        <button id="openAddExerciseSheetBtn" class="tap-active py-3.5 px-4 rounded-xl bg-iron-900 border border-iron-750 hover:border-hevy-green/50 text-slate-200 text-xs font-bold flex items-center justify-center gap-2 shadow-sm">
-          <i data-lucide="plus" class="w-4 h-4 text-hevy-green"></i>
-          新增動作
+        <button id="openAddExToWorkoutBtn" class="tap-active py-3.5 px-4 rounded-xl bg-iron-900 border border-iron-750 hover:border-accent-green/50 text-slate-200 text-xs font-bold flex items-center justify-center gap-2 shadow-sm">
+          <i data-lucide="plus" class="w-4 h-4 text-accent-green"></i>
+          臨時新增動作
         </button>
 
-        <button id="finishWorkoutBtn" class="tap-active py-3.5 px-4 rounded-xl bg-gradient-to-r from-hevy-green to-emerald-600 hover:from-emerald-400 hover:to-hevy-green text-iron-950 text-xs font-black flex items-center justify-center gap-2 shadow-lg shadow-hevy-green/20">
+        <button id="finishWorkoutBtn" class="tap-active py-3.5 px-4 rounded-xl bg-gradient-to-r from-accent-green to-emerald-600 hover:from-emerald-400 hover:to-accent-green text-iron-950 text-xs font-black flex items-center justify-center gap-2 shadow-lg shadow-accent-green/20">
           <i data-lucide="check" class="w-4 h-4 stroke-[3]"></i>
-          完成今日訓練
+          完成今日訓練 (歸檔)
         </button>
       </div>
 
     </section>
 
-    <!-- ================= TAB 2: 數據與進步分析 (Hevy Pro Analytics) ================= -->
+    <!-- ================= TAB 2: 課表範本與每週排程 (Routines & Weekly Split) ================= -->
+    <section id="tab-routines" class="tab-pane space-y-4 hidden">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-base font-extrabold text-white flex items-center gap-2">
+            <i data-lucide="calendar-days" class="w-4 h-4 text-accent-green"></i>
+            每週排程與自訂課表
+          </h2>
+          <p class="text-[11px] text-slate-400">安排週一至週日課表，現場訓練一鍵載入</p>
+        </div>
+        <button id="createNewRoutineBtn" class="px-3 py-1.5 rounded-xl bg-accent-green hover:bg-emerald-400 text-iron-950 text-xs font-bold flex items-center gap-1 tap-active">
+          <i data-lucide="plus" class="w-3.5 h-3.5"></i> 新建課表
+        </button>
+      </div>
+
+      <!-- 每週 7 天排程指派器 (Weekly Split) -->
+      <div class="bg-iron-900 border border-iron-800 rounded-2xl p-4 shadow-xl space-y-3">
+        <div class="flex items-center justify-between text-xs">
+          <span class="font-bold text-slate-300 flex items-center gap-1.5">
+            <i data-lucide="clock" class="w-3.5 h-3.5 text-accent-amber"></i>
+            7 天每週排程分化 (Weekly Split)
+          </span>
+          <span class="text-[10px] text-slate-400">點擊指定當天課表</span>
+        </div>
+
+        <div class="grid grid-cols-7 gap-1" id="weeklySplitGrid">
+          <!-- 動態生成週一 ~ 週日的按鈕與指派 -->
+        </div>
+      </div>
+
+      <!-- 自訂課表範本清單 -->
+      <div class="space-y-3">
+        <div class="flex items-center justify-between text-xs">
+          <span class="font-bold text-slate-400 uppercase tracking-wider">我的課表範本庫</span>
+          <span id="routineCountBadge" class="text-slate-500 font-mono text-[11px]">3 套範本</span>
+        </div>
+
+        <div id="routinesListContainer" class="space-y-3">
+          <!-- 動態載入範本卡片 -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TAB 3: 數據、熱圖與歷史 (Analytics & History) ================= -->
     <section id="tab-analytics" class="tab-pane space-y-4 hidden">
       <div class="flex items-center justify-between">
         <h2 class="text-base font-extrabold text-white flex items-center gap-2">
-          <i data-lucide="trending-up" class="w-4 h-4 text-hevy-green"></i>
-          訓練數據與肌力趨勢
+          <i data-lucide="bar-chart-2" class="w-4 h-4 text-accent-green"></i>
+          訓練數據與訓練頻率
         </h2>
-        <span class="text-[11px] font-mono text-slate-400">Hevy Pro Style</span>
+        <span class="text-[11px] font-mono text-slate-400">Pure Data</span>
       </div>
 
-      <!-- 核心三項指標卡片 -->
+      <!-- GitHub 風格訓練日曆方塊熱圖 (Streak Heatmap) -->
+      <div class="bg-iron-900 border border-iron-800 rounded-2xl p-4 shadow-xl space-y-3">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold text-white flex items-center gap-1.5">
+            <i data-lucide="grid" class="w-3.5 h-3.5 text-accent-green"></i>
+            訓練熱圖 (Workout Heatmap)
+          </span>
+          <span id="heatmapStatsLabel" class="text-[10px] font-mono text-slate-400">近 60 天出勤率</span>
+        </div>
+
+        <!-- 熱圖格子容器 (7 行 x 多列) -->
+        <div class="overflow-x-auto custom-scrollbar pb-1">
+          <div id="heatmapGridContainer" class="flex gap-1.5 min-w-[320px] py-1">
+            <!-- 動態繪製熱圖 -->
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between text-[10px] text-slate-400 pt-1 border-t border-iron-800">
+          <span>顏色深淺代表當日總訓練容量 (Volume Load)</span>
+          <div class="flex items-center gap-1">
+            <span>少</span>
+            <span class="w-2.5 h-2.5 rounded-sm bg-iron-800"></span>
+            <span class="w-2.5 h-2.5 rounded-sm bg-emerald-900"></span>
+            <span class="w-2.5 h-2.5 rounded-sm bg-emerald-600"></span>
+            <span class="w-2.5 h-2.5 rounded-sm bg-emerald-400"></span>
+            <span>多</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 核心三項指標 -->
       <div class="grid grid-cols-3 gap-2">
         <div class="bg-iron-900 border border-iron-800 rounded-xl p-3 text-center space-y-0.5">
-          <span class="text-[10px] font-bold text-slate-400 block uppercase">歷史總容量</span>
-          <span id="statTotalVolume" class="text-base font-mono font-black text-hevy-green">0</span>
+          <span class="text-[10px] font-bold text-slate-400 block uppercase">累積總容量</span>
+          <span id="statTotalVolume" class="text-base font-mono font-black text-accent-green">0</span>
           <span class="text-[9px] text-slate-500 block">kg</span>
         </div>
         <div class="bg-iron-900 border border-iron-800 rounded-xl p-3 text-center space-y-0.5">
-          <span class="text-[10px] font-bold text-slate-400 block uppercase">累積總組數</span>
+          <span class="text-[10px] font-bold text-slate-400 block uppercase">歷史完成組數</span>
           <span id="statTotalSets" class="text-base font-mono font-black text-white">0</span>
           <span class="text-[9px] text-slate-500 block">Sets</span>
         </div>
         <div class="bg-iron-900 border border-iron-800 rounded-xl p-3 text-center space-y-0.5">
-          <span class="text-[10px] font-bold text-slate-400 block uppercase">破紀錄 (PRs)</span>
-          <span id="statTotalPRs" class="text-base font-mono font-black text-hevy-amber">0</span>
-          <span class="text-[9px] text-slate-500 block">次突破</span>
+          <span class="text-[10px] font-bold text-slate-400 block uppercase">突破個人紀錄</span>
+          <span id="statTotalPRs" class="text-base font-mono font-black text-accent-amber">0</span>
+          <span class="text-[9px] text-slate-500 block">次 PR</span>
         </div>
       </div>
 
@@ -205,319 +301,205 @@
       <div class="bg-iron-900 border border-iron-800 rounded-2xl p-4 shadow-xl space-y-3">
         <div class="flex items-center justify-between">
           <span class="text-xs font-bold text-white flex items-center gap-1.5">
-            <i data-lucide="line-chart" class="w-3.5 h-3.5 text-hevy-green"></i>
-            估算 1RM 肌力進步曲線
+            <i data-lucide="line-chart" class="w-3.5 h-3.5 text-accent-green"></i>
+            肌力進步曲線 (e1RM)
           </span>
-          <select id="analyticsExerciseFilter" class="bg-iron-950 border border-iron-750 text-slate-200 text-xs font-bold rounded-lg px-2 py-1 focus:outline-none">
-            <!-- 動態填入動作清單 -->
+          <select id="analyticsExerciseSelect" class="bg-iron-950 border border-iron-750 text-slate-200 text-xs font-bold rounded-lg px-2 py-1 focus:outline-none">
+            <!-- 動態填入主要動作 -->
           </select>
         </div>
-        <!-- Chart.js 畫布 -->
-        <div class="h-48 w-full">
+        <div class="h-44 w-full">
           <canvas id="strengthProgressChart"></canvas>
         </div>
       </div>
 
-      <!-- 圖表 2：每週各肌群總訓練組數分佈 (科學增肌最佳 10~20 組) -->
+      <!-- 圖表 2：每週各肌群總有效組數分佈 (科學增肌最佳 10~20 組) -->
       <div class="bg-iron-900 border border-iron-800 rounded-2xl p-4 shadow-xl space-y-3">
         <div class="flex items-center justify-between">
-          <div>
-            <span class="text-xs font-bold text-white flex items-center gap-1.5">
-              <i data-lucide="bar-chart-3" class="w-3.5 h-3.5 text-hevy-blue"></i>
-              各肌群訓練組數分佈
-            </span>
-            <span class="text-[10px] text-slate-400">建議每週達到 10~20 組最佳增肌量</span>
-          </div>
+          <span class="text-xs font-bold text-white flex items-center gap-1.5">
+            <i data-lucide="bar-chart" class="w-3.5 h-3.5 text-accent-blue"></i>
+            各肌群近 7 天有效組數
+          </span>
+          <span class="text-[10px] text-slate-400">科學建議每週 10-20 組</span>
         </div>
-        <div class="h-44 w-full">
-          <canvas id="muscleVolumeChart"></canvas>
+        <div class="h-40 w-full">
+          <canvas id="muscleVolumeBarChart"></canvas>
         </div>
       </div>
 
       <!-- 個人最佳紀錄 PR 榮譽牆 -->
       <div class="bg-iron-900 border border-iron-800 rounded-2xl p-4 shadow-xl space-y-3">
-        <div class="flex items-center justify-between">
-          <span class="text-xs font-bold text-hevy-amber uppercase tracking-wider flex items-center gap-1.5">
-            <i data-lucide="trophy" class="w-3.5 h-3.5 text-hevy-amber"></i>
-            個人最佳紀錄 (PRs)
-          </span>
-          <span class="text-[11px] text-slate-500">自動由完成組數推算</span>
-        </div>
-        <div id="analyticsPrGrid" class="grid grid-cols-2 gap-2">
+        <span class="text-xs font-bold text-accent-amber uppercase tracking-wider flex items-center gap-1.5">
+          <i data-lucide="award" class="w-3.5 h-3.5 text-accent-amber"></i>
+          個人最佳紀錄 (PRs)
+        </span>
+        <div id="prHonorGrid" class="grid grid-cols-2 gap-2">
           <!-- 動態載入 PR 卡片 -->
         </div>
       </div>
-    </section>
 
-    <!-- ================= TAB 3: 肌群恢復度儀表板 (Fitbod Recovery) ================= -->
-    <section id="tab-recovery" class="tab-pane space-y-4 hidden">
-      <div class="flex items-center justify-between">
-        <div>
-          <h2 class="text-base font-extrabold text-white flex items-center gap-2">
-            <i data-lucide="heart-pulse" class="w-4 h-4 text-hevy-green"></i>
-            肌群疲勞與恢復狀態
-          </h2>
-          <p class="text-[11px] text-slate-400">依據訓練距今時間與累積組數動態計算</p>
-        </div>
-      </div>
-
-      <!-- Fitbod 智慧建議卡片 -->
-      <div id="aiWorkoutRecommendationBox" class="bg-gradient-to-r from-emerald-500/15 via-iron-850 to-iron-900 border border-emerald-500/30 rounded-2xl p-4 space-y-1.5">
-        <div class="flex items-center gap-2 text-xs font-bold text-hevy-green">
-          <i data-lucide="sparkles" class="w-4 h-4"></i> 今日排程建議 (Smart Recommendation)
-        </div>
-        <div id="recommendationText" class="text-sm font-semibold text-slate-200">
-          計算中...
-        </div>
-        <p class="text-[11px] text-slate-400">避免在未充分恢復時重疊過度訓練，確保肌肥大超補償。</p>
-      </div>
-
-      <!-- 各大主要肌群恢復狀態清單 -->
-      <div id="muscleRecoveryCardsContainer" class="space-y-2.5">
-        <!-- 動態渲染胸部、背部、腿部、肩部、手臂等各部位恢復進度條 -->
-      </div>
-    </section>
-
-    <!-- ================= TAB 4: 設定與資料備份 (Settings & Data) ================= -->
-    <section id="tab-settings" class="tab-pane space-y-4 hidden">
-      <div class="flex items-center gap-2">
-        <h2 class="text-base font-extrabold text-white flex items-center gap-2">
-          <i data-lucide="settings" class="w-4 h-4 text-slate-400"></i>
-          個人偏好與資料備份
-        </h2>
-      </div>
-
-      <!-- 偏好設定 -->
-      <div class="bg-iron-900 border border-iron-800 rounded-2xl p-4 space-y-4">
-        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">訓練偏好</span>
-        
-        <!-- 預設槓鈴空槓重 -->
-        <div class="flex items-center justify-between">
-          <span class="text-xs text-slate-300 font-semibold">槓鈴預設空槓重</span>
-          <select id="settingsBarWeight" class="bg-iron-950 border border-iron-750 text-slate-200 text-xs font-bold rounded-lg px-3 py-1.5 focus:outline-none">
-            <option value="20">標準奧林匹克男槓 (20kg)</option>
-            <option value="15">女性/技術訓練槓 (15kg)</option>
-            <option value="10">史密斯機槓 (10kg)</option>
-          </select>
-        </div>
-
-        <!-- 預設組間休息秒數 -->
-        <div class="flex items-center justify-between">
-          <span class="text-xs text-slate-300 font-semibold">打勾後自動計時</span>
-          <select id="settingsRestDuration" class="bg-iron-950 border border-iron-750 text-slate-200 text-xs font-bold rounded-lg px-3 py-1.5 focus:outline-none">
-            <option value="60">60 秒 (肌肥大短休)</option>
-            <option value="90" selected>90 秒 (標準複合動作)</option>
-            <option value="120">2 分鐘 (大重量主項)</option>
-            <option value="180">3 分鐘 (力量極限組)</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- 本地資料備份與還原 -->
+      <!-- 資料備份與管理 -->
       <div class="bg-iron-900 border border-iron-800 rounded-2xl p-4 space-y-3">
-        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">離線資料安全</span>
-        <p class="text-xs text-slate-400">所有日誌與 PR 均 100% 保存在您的手機端，免註冊登入。建議定期匯出備份。</p>
-        
-        <div class="grid grid-cols-2 gap-2 pt-1">
-          <button id="exportBackupBtn" class="tap-active py-3 bg-iron-800 hover:bg-iron-750 border border-iron-700 rounded-xl text-xs font-bold text-slate-200 flex items-center justify-center gap-1.5">
-            <i data-lucide="download" class="w-3.5 h-3.5 text-hevy-green"></i> 匯出備份 (JSON)
+        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">資料備份與還原 (離線自主)</span>
+        <div class="grid grid-cols-2 gap-2">
+          <button id="exportJsonBackupBtn" class="tap-active py-2.5 px-3 bg-iron-800 hover:bg-iron-750 border border-iron-700 rounded-xl text-xs font-bold text-slate-200 flex items-center justify-center gap-1.5">
+            <i data-lucide="download" class="w-3.5 h-3.5 text-accent-green"></i> 匯出備份 (JSON)
           </button>
-
-          <label class="tap-active py-3 bg-iron-800 hover:bg-iron-750 border border-iron-700 rounded-xl text-xs font-bold text-slate-200 flex items-center justify-center gap-1.5 cursor-pointer">
-            <i data-lucide="upload" class="w-3.5 h-3.5 text-hevy-blue"></i> 匯入還原
-            <input type="file" id="importBackupInput" accept=".json" class="hidden">
+          <label class="tap-active py-2.5 px-3 bg-iron-800 hover:bg-iron-750 border border-iron-700 rounded-xl text-xs font-bold text-slate-200 flex items-center justify-center gap-1.5 cursor-pointer">
+            <i data-lucide="upload" class="w-3.5 h-3.5 text-accent-blue"></i> 匯入還原
+            <input type="file" id="importJsonBackupInput" accept=".json" class="hidden">
           </label>
         </div>
-
-        <div class="pt-2 border-t border-iron-800 flex justify-between items-center text-xs">
-          <span class="text-slate-500">重設為初始演示資料</span>
-          <button id="resetDemoDataBtn" class="text-rose-400 hover:underline">重置日誌</button>
-        </div>
-      </div>
-
-      <!-- 說明 -->
-      <div class="bg-iron-900/60 border border-iron-800 rounded-2xl p-4 text-xs text-slate-400 space-y-1.5">
-        <p class="text-slate-300 font-bold">💡 教練操作手冊</p>
-        <p>• 點擊表格的綠色「✓」：標記完成該組，同時啟動休息計時器。</p>
-        <p>• 點擊動作標題旁的「🧮 槓片」：底部自動滑出單邊槓片掛法與熱身序列。</p>
-        <p>• 點擊「🔄 替換」：深蹲架或臥推架客滿時，立即無縫替換為同肌群啞鈴/機械項目。</p>
       </div>
     </section>
 
   </main>
 
-  <!-- ================= 底部導航欄 (Hevy Style 4 Tabs) ================= -->
-  <nav class="fixed bottom-0 left-0 right-0 z-40 bg-iron-900/95 backdrop-blur-lg border-t border-iron-800/80 px-2 py-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-    <div class="max-w-xl mx-auto grid grid-cols-4 gap-1">
-      <button data-nav="tab-workout" class="nav-tab-btn active flex flex-col items-center justify-center py-1.5 rounded-xl text-hevy-green transition">
-        <i data-lucide="clipboard-list" class="w-5 h-5"></i>
-        <span class="text-[10px] font-bold mt-1">訓練</span>
+  <!-- ================= 底部導航欄 (極簡 3 大分頁) ================= -->
+  <nav class="fixed bottom-0 left-0 right-0 z-40 bg-iron-900/95 backdrop-blur-lg border-t border-iron-800/80 px-4 py-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+    <div class="max-w-xl mx-auto grid grid-cols-3 gap-2">
+      <button data-nav="tab-workout" class="nav-tab-btn active flex flex-col items-center justify-center py-1.5 rounded-xl text-accent-green transition tap-active">
+        <i data-lucide="clipboard-check" class="w-5 h-5"></i>
+        <span class="text-[10px] font-bold mt-1">現場訓練</span>
       </button>
 
-      <button data-nav="tab-analytics" class="nav-tab-btn flex flex-col items-center justify-center py-1.5 rounded-xl text-slate-400 hover:text-slate-200 transition">
-        <i data-lucide="line-chart" class="w-5 h-5"></i>
-        <span class="text-[10px] font-bold mt-1">數據</span>
+      <button data-nav="tab-routines" class="nav-tab-btn flex flex-col items-center justify-center py-1.5 rounded-xl text-slate-400 hover:text-slate-200 transition tap-active">
+        <i data-lucide="calendar-days" class="w-5 h-5"></i>
+        <span class="text-[10px] font-bold mt-1">課表排程</span>
       </button>
 
-      <button data-nav="tab-recovery" class="nav-tab-btn flex flex-col items-center justify-center py-1.5 rounded-xl text-slate-400 hover:text-slate-200 transition">
-        <i data-lucide="heart-pulse" class="w-5 h-5"></i>
-        <span class="text-[10px] font-bold mt-1">恢復</span>
-      </button>
-
-      <button data-nav="tab-settings" class="nav-tab-btn flex flex-col items-center justify-center py-1.5 rounded-xl text-slate-400 hover:text-slate-200 transition">
-        <i data-lucide="settings" class="w-5 h-5"></i>
-        <span class="text-[10px] font-bold mt-1">設定</span>
+      <button data-nav="tab-analytics" class="nav-tab-btn flex flex-col items-center justify-center py-1.5 rounded-xl text-slate-400 hover:text-slate-200 transition tap-active">
+        <i data-lucide="bar-chart-2" class="w-5 h-5"></i>
+        <span class="text-[10px] font-bold mt-1">數據分析</span>
       </button>
     </div>
   </nav>
 
-  <!-- ================= 底部抽屜 1: 槓片速算與熱身排程 (Quick Plate Sheet) ================= -->
-  <div id="plateSheetModal" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex flex-col justify-end hidden">
-    <div class="bg-iron-900 border-t border-iron-700 rounded-t-3xl max-w-xl w-full mx-auto p-5 space-y-4 shadow-2xl max-h-[85vh] overflow-y-auto custom-scrollbar">
+  <!-- ================= 彈出抽屜 1: 課表編輯/新建 Modal (Routine Editor) ================= -->
+  <div id="routineEditorModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col justify-end hidden">
+    <div class="bg-iron-900 border-t border-iron-700 rounded-t-3xl max-w-xl w-full mx-auto p-5 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar">
       <div class="flex items-center justify-between pb-2 border-b border-iron-800">
-        <div>
-          <h3 class="font-extrabold text-white text-base flex items-center gap-1.5">
-            <i data-lucide="disc" class="w-4 h-4 text-hevy-amber"></i>
-            槓鈴槓片與熱身排程
-          </h3>
-          <p id="sheetTargetWeightLabel" class="text-xs text-slate-400">計算目標組重量</p>
-        </div>
-        <button id="closePlateSheetBtn" class="text-slate-400 hover:text-white p-1">
+        <h3 id="routineEditorModalTitle" class="font-extrabold text-white text-base flex items-center gap-2">
+          <i data-lucide="edit-3" class="w-4 h-4 text-accent-green"></i> 編輯課表範本
+        </h3>
+        <button id="closeRoutineEditorBtn" class="text-slate-400 hover:text-white p-1">
           <i data-lucide="x" class="w-5 h-5"></i>
         </button>
       </div>
 
-      <!-- 快速輸入微調 -->
-      <div class="flex items-center gap-2">
-        <input id="sheetWeightInput" type="number" step="0.5" 
-          class="flex-1 bg-iron-950 border border-iron-700 rounded-xl py-3 px-4 text-2xl font-mono font-black text-hevy-amber text-center focus:outline-none focus:border-hevy-amber" inputmode="decimal">
-        <div class="flex gap-1">
-          <button data-sheet-delta="-2.5" class="sheet-weight-btn px-3 py-3 rounded-xl bg-iron-800 text-xs font-bold font-mono">-2.5</button>
-          <button data-sheet-delta="+2.5" class="sheet-weight-btn px-3 py-3 rounded-xl bg-iron-800 text-xs font-bold font-mono text-hevy-amber">+2.5</button>
+      <!-- 課表名稱與主肌群 -->
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 mb-1">課表名稱</label>
+          <input id="routineNameInput" type="text" placeholder="例如：推 A (Push A)" 
+            class="w-full bg-iron-950 border border-iron-750 focus:border-accent-green rounded-xl py-2.5 px-3 text-sm text-white focus:outline-none">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 mb-1">主要刺激肌群 (自動匹配熱身)</label>
+          <select id="routineCategorySelect" class="w-full bg-iron-950 border border-iron-750 focus:border-accent-green rounded-xl py-2.5 px-3 text-xs text-white focus:outline-none">
+            <option value="胸部">胸部為主 (胸・肩・三頭)</option>
+            <option value="背部">背部為主 (背・後三角・二頭)</option>
+            <option value="腿部">腿部為主 (股四頭・臀腿・膕旁)</option>
+            <option value="肩部">肩部為主 (肩・手臂)</option>
+            <option value="全身">全身綜合分化</option>
+          </select>
         </div>
       </div>
 
-      <!-- 單邊槓片圖解 -->
-      <div class="bg-iron-950 border border-iron-800 rounded-2xl p-4 space-y-2">
-        <div class="flex items-center justify-between text-xs font-bold text-slate-400">
-          <span>單邊需掛 (Per Side)</span>
-          <span id="sheetSideWeightBadge" class="text-hevy-amber font-mono">0 kg</span>
-        </div>
-        <div class="h-20 flex items-center justify-start overflow-x-auto custom-scrollbar relative px-2" id="sheetBarbellGraphic">
-          <!-- 動態繪製槓鈴與槓片 -->
-        </div>
-        <div id="sheetPlatesTextSummary" class="flex flex-wrap gap-1.5 pt-1">
-          <!-- 標籤 -->
-        </div>
-      </div>
-
-      <!-- 漸進熱身組建議清單 -->
+      <!-- 動作清單與順序調整 -->
       <div class="space-y-2">
-        <span class="text-xs font-bold text-slate-300 flex items-center gap-1.5">
-          <i data-lucide="flame" class="w-3.5 h-3.5 text-orange-500"></i>
-          漸進熱身排程 (點擊可帶入工作表)
-        </span>
-        <div id="sheetWarmupStepsContainer" class="space-y-1.5">
-          <!-- 動態步驟 -->
+        <div class="flex items-center justify-between text-xs">
+          <span class="font-bold text-slate-300">課表動作列表</span>
+          <button id="addExerciseToTemplateBtn" class="text-accent-green hover:underline font-bold text-xs flex items-center gap-1">
+            <i data-lucide="plus" class="w-3.5 h-3.5"></i> 加入動作
+          </button>
         </div>
+
+        <div id="templateExercisesList" class="space-y-1.5 max-h-60 overflow-y-auto custom-scrollbar">
+          <!-- 動態填入動作行，支援上移、下移、刪除、設定預設組數 -->
+        </div>
+      </div>
+
+      <div class="flex gap-2 pt-2 border-t border-iron-800">
+        <button id="cancelRoutineEditBtn" class="flex-1 py-3 rounded-xl bg-iron-800 text-slate-300 text-xs font-bold tap-active">取消</button>
+        <button id="saveRoutineTemplateBtn" class="flex-1 py-3 rounded-xl bg-accent-green text-iron-950 text-xs font-black tap-active">儲存課表</button>
       </div>
     </div>
   </div>
 
-  <!-- ================= 底部抽屜 2: 替換動作 (Swap Exercise Sheet) ================= -->
-  <div id="swapExerciseModal" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex flex-col justify-end hidden">
+  <!-- ================= 彈出抽屜 2: 動作選擇庫 (Exercise Library Modal) ================= -->
+  <div id="exercisePickerModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col justify-end hidden">
+    <div class="bg-iron-900 border-t border-iron-700 rounded-t-3xl max-w-xl w-full mx-auto p-5 space-y-3.5 shadow-2xl max-h-[85vh] overflow-y-auto custom-scrollbar">
+      <div class="flex items-center justify-between pb-2 border-b border-iron-800">
+        <h3 class="font-extrabold text-white text-base flex items-center gap-2">
+          <i data-lucide="dumbbell" class="w-4 h-4 text-accent-green"></i> 選擇訓練動作
+        </h3>
+        <button id="closePickerModalBtn" class="text-slate-400 hover:text-white p-1">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- 肌群篩選列 -->
+      <div class="flex gap-1.5 overflow-x-auto custom-scrollbar pb-1" id="pickerFilterRow">
+        <button data-cat="全部" class="picker-filter-btn px-3 py-1 rounded-full text-xs font-bold bg-accent-green text-iron-950">全部</button>
+        <button data-cat="胸部" class="picker-filter-btn px-3 py-1 rounded-full text-xs font-bold bg-iron-800 text-slate-300">胸部</button>
+        <button data-cat="背部" class="picker-filter-btn px-3 py-1 rounded-full text-xs font-bold bg-iron-800 text-slate-300">背部</button>
+        <button data-cat="腿部" class="picker-filter-btn px-3 py-1 rounded-full text-xs font-bold bg-iron-800 text-slate-300">腿部</button>
+        <button data-cat="肩部" class="picker-filter-btn px-3 py-1 rounded-full text-xs font-bold bg-iron-800 text-slate-300">肩部</button>
+        <button data-cat="手臂" class="picker-filter-btn px-3 py-1 rounded-full text-xs font-bold bg-iron-800 text-slate-300">手臂</button>
+      </div>
+
+      <!-- 動作清單 -->
+      <div id="pickerExerciseItemsList" class="space-y-1.5 max-h-64 overflow-y-auto custom-scrollbar">
+        <!-- 動態填入動作 -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 彈出抽屜 3: 僅今日替換動作 (Swap for Today Modal) ================= -->
+  <div id="swapTodayModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col justify-end hidden">
     <div class="bg-iron-900 border-t border-iron-700 rounded-t-3xl max-w-xl w-full mx-auto p-5 space-y-4 shadow-2xl max-h-[80vh] overflow-y-auto custom-scrollbar">
       <div class="flex items-center justify-between pb-2 border-b border-iron-800">
         <div>
           <h3 class="font-extrabold text-white text-base flex items-center gap-1.5">
-            <i data-lucide="arrow-left-right" class="w-4 h-4 text-hevy-blue"></i>
-            替換替代動作 (Equipment Swap)
+            <i data-lucide="arrow-left-right" class="w-4 h-4 text-accent-blue"></i> 僅今日臨時替換動作
           </h3>
-          <p id="swapOriginNameLabel" class="text-xs text-slate-400">器材客滿時推薦同肌群項目</p>
+          <p id="swapTodayPromptLabel" class="text-xs text-slate-400">器材客滿時切換，不污染原課表範本</p>
         </div>
-        <button id="closeSwapModalBtn" class="text-slate-400 hover:text-white p-1">
+        <button id="closeSwapTodayBtn" class="text-slate-400 hover:text-white p-1">
           <i data-lucide="x" class="w-5 h-5"></i>
         </button>
       </div>
 
-      <!-- 替代動作清單 -->
-      <div id="swapAlternativesList" class="space-y-2">
-        <!-- 動態填入替代清單 -->
+      <div id="swapTodayAltsList" class="space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
+        <!-- 填入同肌群替代動作 -->
       </div>
     </div>
   </div>
 
-  <!-- ================= 底部抽屜 3: 新增動作至今日課表 ================= -->
-  <div id="addExerciseModal" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex flex-col justify-end hidden">
-    <div class="bg-iron-900 border-t border-iron-700 rounded-t-3xl max-w-xl w-full mx-auto p-5 space-y-4 shadow-2xl max-h-[85vh] overflow-y-auto custom-scrollbar">
-      <div class="flex items-center justify-between pb-2 border-b border-iron-800">
-        <h3 class="font-extrabold text-white text-base flex items-center gap-2">
-          <i data-lucide="plus-circle" class="w-4 h-4 text-hevy-green"></i>
-          選擇要加入的動作
-        </h3>
-        <button id="closeAddModalBtn" class="text-slate-400 hover:text-white p-1">
-          <i data-lucide="x" class="w-5 h-5"></i>
-        </button>
-      </div>
+  <!-- 應用程式核心邏輯腳本 (附帶版本快取破除機制) -->
+  <script src="./app.js?v=4.0"></script>
 
-      <!-- 快速肌群篩選按鈕列 -->
-      <div class="flex gap-1.5 overflow-x-auto custom-scrollbar pb-1" id="categoryFilterRow">
-        <button data-cat="全部" class="cat-filter-btn px-3 py-1 rounded-full text-xs font-bold bg-hevy-green text-iron-950">全部</button>
-        <button data-cat="胸部" class="cat-filter-btn px-3 py-1 rounded-full text-xs font-bold bg-iron-800 text-slate-300">胸部</button>
-        <button data-cat="背部" class="cat-filter-btn px-3 py-1 rounded-full text-xs font-bold bg-iron-800 text-slate-300">背部</button>
-        <button data-cat="腿部" class="cat-filter-btn px-3 py-1 rounded-full text-xs font-bold bg-iron-800 text-slate-300">腿部</button>
-        <button data-cat="肩部" class="cat-filter-btn px-3 py-1 rounded-full text-xs font-bold bg-iron-800 text-slate-300">肩部</button>
-        <button data-cat="手臂/核心" class="cat-filter-btn px-3 py-1 rounded-full text-xs font-bold bg-iron-800 text-slate-300">手臂</button>
-      </div>
-
-      <!-- 動作清單 -->
-      <div id="exerciseLibraryList" class="space-y-1.5 max-h-64 overflow-y-auto custom-scrollbar">
-        <!-- 動態填入動作卡片 -->
-      </div>
-
-      <!-- 自訂新增動作輸入列 -->
-      <div class="pt-2 border-t border-iron-800 space-y-2">
-        <span class="text-xs font-bold text-slate-400">找不到？建立自訂動作：</span>
-        <div class="flex gap-2">
-          <input id="customExNameInput" type="text" placeholder="動作名稱 (如：保加利亞分腿蹲)" 
-            class="flex-1 bg-iron-950 border border-iron-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-hevy-green">
-          <select id="customExCatSelect" class="bg-iron-950 border border-iron-700 rounded-xl px-2 py-2 text-xs text-slate-300">
-            <option value="胸部">胸部</option>
-            <option value="背部">背部</option>
-            <option value="腿部">腿部</option>
-            <option value="肩部">肩部</option>
-            <option value="手臂/核心">手臂</option>
-          </select>
-          <button id="createCustomExBtn" class="px-3 py-2 rounded-xl bg-iron-800 hover:bg-iron-750 text-xs font-bold text-hevy-green">新增</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- 應用程式邏輯腳本 (附帶版本快取破除機制) -->
-  <script src="./app.js?v=3.0"></script>
-
-  <!-- Service Worker 註冊與自動熱更新 -->
+  <!-- Service Worker 註冊與自動更新 -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('./sw.js')
           .then(reg => {
-            console.log('[IronLog Pro] SW registered:', reg.scope);
-            // 當發現有新版本 SW 安裝時，自動重載頁面以套用最新版
+            console.log('[IronLog] SW registered:', reg.scope);
             reg.addEventListener('updatefound', () => {
               const newWorker = reg.installing;
               if (newWorker) {
                 newWorker.addEventListener('statechange', () => {
                   if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                    console.log('[IronLog Pro] New update available, reloading...');
+                    console.log('[IronLog] New version available, reloading...');
                     window.location.reload();
                   }
                 });
               }
             });
           })
-          .catch(err => console.warn('[IronLog Pro] SW failed:', err));
+          .catch(err => console.warn('[IronLog] SW failed:', err));
       });
     }
   </script>

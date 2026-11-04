@@ -1,263 +1,194 @@
 /**
- * IronLog Pro - 核心應用程式邏輯 (Hevy + Fitbod Clean Workflow)
- * 具備訓練工作表打勾流、肌群疲勞恢復模型、Chart.js 進階圖表、槓片速算抽屜
+ * IronLog - 核心重構腳本
+ * 聚焦：自訂課表範本、每週排程、部位熱身建議、極速現場打勾、GitHub熱圖
  */
 
-// ======================= 1. 預設動作庫與替代關係 =======================
+// ======================= 1. 預設資料庫 (動作庫、課表範本、排程) =======================
 const DEFAULT_EXERCISES = [
+  { id: 'bench-press', name: '平板槓鈴臥推 (Bench Press)', category: '胸部', isCompound: true, pinNote: '握距中指對準壓紋圈，沉肩收核心' },
+  { id: 'incline-db-press', name: '上斜啞鈴臥推 (Incline DB Press)', category: '胸部', isCompound: false, pinNote: '椅背調整至 30 度斜角' },
+  { id: 'dips', name: '雙槓臂屈伸 (Dips)', category: '胸部', isCompound: true, pinNote: '軀幹微前傾著重下胸' },
+  { id: 'cable-fly', name: '滑輪夾胸 (Cable Fly)', category: '胸部', isCompound: false, pinNote: '滑輪高度調整至肩膀水平' },
+  
+  { id: 'squat', name: '槓鈴頸後深蹲 (Back Squat)', category: '腿部', isCompound: true, pinNote: '站距略寬於肩，腳尖朝外30度' },
+  { id: 'leg-press', name: '45度仰臥腿推機 (Leg Press)', category: '腿部', isCompound: true, pinNote: '背板貼平，膝蓋不內扣' },
+  { id: 'rdl', name: '羅馬尼亞硬舉 (RDL)', category: '腿部', isCompound: true, pinNote: '髖關節鉸鏈後推，維持背部平直' },
+  { id: 'leg-extension', name: '坐姿機械腿屈伸 (Leg Extension)', category: '腿部', isCompound: false, pinNote: '椅背孔位第 3 格' },
+  
+  { id: 'deadlift', name: '傳統硬舉 (Conventional Deadlift)', category: '背部', isCompound: true, pinNote: '槓鈴貼近小腿脛骨起槓' },
+  { id: 'barbell-row', name: '槓鈴划船 (Barbell Row)', category: '背部', isCompound: true, pinNote: '軀幹前傾45度，拉向肚臍位置' },
+  { id: 'lat-pulldown', name: '高位滑輪下拉 (Lat Pulldown)', category: '背部', isCompound: true, pinNote: '大腿擋板卡緊，胸口微挺' },
+  { id: 'pull-up', name: '引體向上 (Pull-Up)', category: '背部', isCompound: true, pinNote: '肩胛下沉再帶動手肘向後下拉' },
+  
+  { id: 'ohp', name: '槓鈴站姿肩推 (Overhead Press)', category: '肩部', isCompound: true, pinNote: '夾緊臀部夾緊腹部，直上直下' },
+  { id: 'db-shoulder-press', name: '坐姿啞鈴肩推 (DB Shoulder Press)', category: '肩部', isCompound: true, pinNote: '啞鈴下沉至耳旁水平' },
+  { id: 'lateral-raise', name: '啞鈴側平舉 (Lateral Raise)', category: '肩部', isCompound: false, pinNote: '手肘微曲，像倒水般帶動' },
+  
+  { id: 'bicep-curl', name: '啞鈴/槓鈴彎舉 (Bicep Curl)', category: '手臂', isCompound: false, pinNote: '手肘固定於身體兩側' },
+  { id: 'tricep-pushdown', name: '滑輪三頭肌下壓 (Tricep Pushdown)', category: '手臂', isCompound: false, pinNote: '大臂夾緊不晃動' }
+];
+
+// 預設經典 3 大課表範本
+const DEFAULT_ROUTINES = [
   {
-    id: 'bench-press',
-    name: '平板槓鈴臥推 (Bench Press)',
+    id: 'push-a',
+    name: '推 A (胸・肩・三頭)',
     category: '胸部',
-    equipment: '槓鈴',
-    alternatives: ['db-bench-press', 'chest-press-machine', 'dips']
+    exercises: [
+      { exerciseId: 'bench-press', targetSets: 4, targetReps: 8 },
+      { exerciseId: 'incline-db-press', targetSets: 3, targetReps: 10 },
+      { exerciseId: 'db-shoulder-press', targetSets: 3, targetReps: 10 },
+      { exerciseId: 'lateral-raise', targetSets: 4, targetReps: 12 },
+      { exerciseId: 'tricep-pushdown', targetSets: 3, targetReps: 12 }
+    ]
   },
   {
-    id: 'db-bench-press',
-    name: '平板啞鈴臥推 (DB Bench Press)',
-    category: '胸部',
-    equipment: '啞鈴',
-    alternatives: ['bench-press', 'incline-db-press']
+    id: 'pull-a',
+    name: '拉 A (背・後三角・二頭)',
+    category: '背部',
+    exercises: [
+      { exerciseId: 'deadlift', targetSets: 3, targetReps: 5 },
+      { exerciseId: 'lat-pulldown', targetSets: 4, targetReps: 8 },
+      { exerciseId: 'barbell-row', targetSets: 3, targetReps: 8 },
+      { exerciseId: 'bicep-curl', targetSets: 4, targetReps: 10 }
+    ]
   },
   {
-    id: 'incline-db-press',
-    name: '上斜啞鈴臥推 (Incline DB Press)',
-    category: '胸部',
-    equipment: '啞鈴',
-    alternatives: ['bench-press', 'chest-press-machine']
-  },
-  {
-    id: 'chest-press-machine',
-    name: '坐姿機械胸推 (Chest Press Machine)',
-    category: '胸部',
-    equipment: '機械',
-    alternatives: ['bench-press', 'db-bench-press']
-  },
-  {
-    id: 'squat',
-    name: '槓鈴頸後深蹲 (Back Squat)',
+    id: 'leg-a',
+    name: '腿 A (股四頭・臀腿・膕旁)',
     category: '腿部',
-    equipment: '槓鈴',
-    alternatives: ['leg-press', 'front-squat', 'goblet-squat']
-  },
-  {
-    id: 'front-squat',
-    name: '槓鈴前蹲舉 (Front Squat)',
-    category: '腿部',
-    equipment: '槓鈴',
-    alternatives: ['squat', 'leg-press']
-  },
-  {
-    id: 'leg-press',
-    name: '45度仰臥腿推機 (Leg Press)',
-    category: '腿部',
-    equipment: '機械',
-    alternatives: ['squat', 'front-squat']
-  },
-  {
-    id: 'rdl',
-    name: '羅馬尼亞硬舉 (RDL)',
-    category: '腿部',
-    equipment: '槓鈴',
-    alternatives: ['deadlift', 'leg-curl']
-  },
-  {
-    id: 'deadlift',
-    name: '傳統硬舉 (Conventional Deadlift)',
-    category: '背部',
-    equipment: '槓鈴',
-    alternatives: ['sumo-deadlift', 'barbell-row']
-  },
-  {
-    id: 'sumo-deadlift',
-    name: '相撲硬舉 (Sumo Deadlift)',
-    category: '背部',
-    equipment: '槓鈴',
-    alternatives: ['deadlift', 'rdl']
-  },
-  {
-    id: 'barbell-row',
-    name: '槓鈴划船 (Barbell Row)',
-    category: '背部',
-    equipment: '槓鈴',
-    alternatives: ['lat-pulldown', 'seated-cable-row']
-  },
-  {
-    id: 'lat-pulldown',
-    name: '高位滑輪下拉 (Lat Pulldown)',
-    category: '背部',
-    equipment: '滑輪',
-    alternatives: ['pull-up', 'barbell-row']
-  },
-  {
-    id: 'pull-up',
-    name: '引體向上 (Pull-Up)',
-    category: '背部',
-    equipment: '自體重',
-    alternatives: ['lat-pulldown', 'barbell-row']
-  },
-  {
-    id: 'ohp',
-    name: '槓鈴站姿肩推 (Overhead Press)',
-    category: '肩部',
-    equipment: '槓鈴',
-    alternatives: ['db-shoulder-press', 'lateral-raise']
-  },
-  {
-    id: 'db-shoulder-press',
-    name: '坐姿啞鈴肩推 (DB Shoulder Press)',
-    category: '肩部',
-    equipment: '啞鈴',
-    alternatives: ['ohp', 'lateral-raise']
-  },
-  {
-    id: 'lateral-raise',
-    name: '啞鈴側平舉 (Lateral Raise)',
-    category: '肩部',
-    equipment: '啞鈴',
-    alternatives: ['cable-lateral-raise', 'ohp']
-  },
-  {
-    id: 'bicep-curl',
-    name: '槓鈴/啞鈴彎舉 (Bicep Curl)',
-    category: '手臂/核心',
-    equipment: '啞鈴',
-    alternatives: ['tricep-pushdown']
-  },
-  {
-    id: 'tricep-pushdown',
-    name: '滑輪三頭肌下壓 (Tricep Pushdown)',
-    category: '手臂/核心',
-    equipment: '滑輪',
-    alternatives: ['dips', 'bicep-curl']
-  },
-  {
-    id: 'dips',
-    name: '雙槓臂屈伸 (Dips)',
-    category: '胸部',
-    equipment: '自體重',
-    alternatives: ['chest-press-machine', 'tricep-pushdown']
+    exercises: [
+      { exerciseId: 'squat', targetSets: 4, targetReps: 6 },
+      { exerciseId: 'leg-press', targetSets: 3, targetReps: 10 },
+      { exerciseId: 'rdl', targetSets: 3, targetReps: 8 },
+      { exerciseId: 'leg-extension', targetSets: 3, targetReps: 12 }
+    ]
   }
 ];
 
-// 槓片規格與色彩
-const PLATE_SPECS = [
-  { weight: 25, color: '#ef4444', textColor: '#ffffff', label: '25', height: 'h-16', width: 'w-4', border: 'border-red-600' },
-  { weight: 20, color: '#3b82f6', textColor: '#ffffff', label: '20', height: 'h-15', width: 'w-3.5', border: 'border-blue-600' },
-  { weight: 15, color: '#eab308', textColor: '#000000', label: '15', height: 'h-13', width: 'w-3.5', border: 'border-yellow-600' },
-  { weight: 10, color: '#10b981', textColor: '#ffffff', label: '10', height: 'h-11', width: 'w-3', border: 'border-emerald-600' },
-  { weight: 5, color: '#f8fafc', textColor: '#0f172a', label: '5', height: 'h-9', width: 'w-3', border: 'border-slate-300' },
-  { weight: 2.5, color: '#1e293b', textColor: '#f8fafc', label: '2.5', height: 'h-8', width: 'w-2.5', border: 'border-slate-600' },
-  { weight: 1.25, color: '#94a3b8', textColor: '#0f172a', label: '1.25', height: 'h-6', width: 'w-2', border: 'border-slate-400' }
-];
-
-// RTS 官方 RPE 矩陣 (前5下精確對照)
-const RTS_RPE_TABLE = {
-  1: { 10: 1.000, 9.5: 0.978, 9: 0.955, 8.5: 0.939, 8: 0.922 },
-  2: { 10: 0.955, 9.5: 0.939, 9: 0.922, 8.5: 0.907, 8: 0.892 },
-  3: { 10: 0.922, 9.5: 0.907, 9: 0.892, 8.5: 0.878, 8: 0.863 },
-  4: { 10: 0.892, 9.5: 0.878, 9: 0.863, 8.5: 0.849, 8: 0.834 },
-  5: { 10: 0.863, 9.5: 0.849, 9: 0.834, 8.5: 0.819, 8: 0.811 },
-  6: { 10: 0.834, 9.5: 0.819, 9: 0.804, 8.5: 0.790, 8: 0.774 },
-  8: { 10: 0.774, 9.5: 0.760, 9: 0.744, 8.5: 0.728, 8: 0.713 },
-  10: { 10: 0.713, 9.5: 0.697, 9: 0.681, 8.5: 0.665, 8: 0.649 },
-  12: { 10: 0.649, 9.5: 0.632, 9: 0.617, 8.5: 0.601, 8: 0.584 }
+// 預設每週排程 (1:週一, 2:週二, 3:週三, 4:週四, 5:週五, 6:週六, 0:週日)
+const DEFAULT_WEEKLY_SPLIT = {
+  1: 'push-a',
+  2: 'pull-a',
+  3: null, // 休息日
+  4: 'leg-a',
+  5: 'push-a',
+  6: null,
+  0: null
 };
 
-// ======================= 2. 本地儲存與全域狀態 =======================
+// 部位專屬動態活動度熱身項目
+const MOBILITY_PROTOCOLS = {
+  '胸部': [
+    { text: '彈力帶 / 輕啞鈴肩外旋 × 15 次', done: false },
+    { text: '胸椎伸展與旋轉放鬆 × 30 秒', done: false }
+  ],
+  '背部': [
+    { text: '單槓被動懸掛 (Dead Hang) × 30 秒', done: false },
+    { text: '輕重量面拉 (Face Pull) 活化肩胛 × 15 次', done: false }
+  ],
+  '腿部': [
+    { text: '徒手深蹲底端停頓 3 秒 (活化髖踝) × 8 次', done: false },
+    { text: '雙腿臀橋 (激活臀大肌) × 12 次', done: false }
+  ],
+  '肩部': [
+    { text: '胸椎伸展與肩胛滑動 × 30 秒', done: false },
+    { text: '輕啞鈴過頭伸展 / YWTL 肩袖啟動 × 12 次', done: false }
+  ],
+  '全身': [
+    { text: '全身動態關節活動度操 × 2 分鐘', done: false },
+    { text: '深蹲髖關節活動度伸展 × 8 次', done: false }
+  ]
+};
+
+// 豐富的歷史真實數據 (供熱圖與折線圖使用)
+const INITIAL_HISTORY = [
+  // 12 天前
+  { id: 'h1', date: '2026-10-24', timestamp: 1792828800000, exerciseId: 'bench-press', exerciseName: '平板槓鈴臥推 (Bench Press)', category: '胸部', weight: 75, reps: 8, rpe: 8, setType: 'working', e1rm: 105.2 },
+  { id: 'h2', date: '2026-10-24', timestamp: 1792828860000, exerciseId: 'bench-press', exerciseName: '平板槓鈴臥推 (Bench Press)', category: '胸部', weight: 75, reps: 8, rpe: 8, setType: 'working', e1rm: 105.2 },
+  // 9 天前
+  { id: 'h3', date: '2026-10-27', timestamp: 1793088000000, exerciseId: 'squat', exerciseName: '槓鈴頸後深蹲 (Back Squat)', category: '腿部', weight: 100, reps: 6, rpe: 8, setType: 'working', e1rm: 125.0 },
+  { id: 'h4', date: '2026-10-27', timestamp: 1793088060000, exerciseId: 'squat', exerciseName: '槓鈴頸後深蹲 (Back Squat)', category: '腿部', weight: 105, reps: 6, rpe: 8.5, setType: 'working', e1rm: 129.5 },
+  // 7 天前
+  { id: 'h5', date: '2026-10-29', timestamp: 1793260800000, exerciseId: 'deadlift', exerciseName: '傳統硬舉 (Conventional Deadlift)', category: '背部', weight: 130, reps: 5, rpe: 8, setType: 'working', e1rm: 160.2 },
+  { id: 'h6', date: '2026-10-29', timestamp: 1793260860000, exerciseId: 'barbell-row', exerciseName: '槓鈴划船 (Barbell Row)', category: '背部', weight: 65, reps: 8, rpe: 8, setType: 'working', e1rm: 91.2 },
+  // 5 天前
+  { id: 'h7', date: '2026-10-31', timestamp: 1793433600000, exerciseId: 'bench-press', exerciseName: '平板槓鈴臥推 (Bench Press)', category: '胸部', weight: 80, reps: 8, rpe: 8, setType: 'working', e1rm: 112.2 },
+  { id: 'h8', date: '2026-10-31', timestamp: 1793433660000, exerciseId: 'incline-db-press', exerciseName: '上斜啞鈴臥推 (Incline DB Press)', category: '胸部', weight: 28, reps: 10, rpe: 8, setType: 'working', e1rm: 42.1 },
+  // 3 天前
+  { id: 'h9', date: '2026-11-02', timestamp: 1793606400000, exerciseId: 'squat', exerciseName: '槓鈴頸後深蹲 (Back Squat)', category: '腿部', weight: 115, reps: 6, rpe: 8.5, setType: 'working', e1rm: 141.8 },
+  // 昨天
+  { id: 'h10', date: '2026-11-04', timestamp: 1793779200000, exerciseId: 'deadlift', exerciseName: '傳統硬舉 (Conventional Deadlift)', category: '背部', weight: 140, reps: 5, rpe: 8, setType: 'working', e1rm: 172.6 },
+  { id: 'h11', date: '2026-11-04', timestamp: 1793779260000, exerciseId: 'lat-pulldown', exerciseName: '高位滑輪下拉 (Lat Pulldown)', category: '背部', weight: 60, reps: 10, rpe: 8, setType: 'working', e1rm: 85.0 }
+];
+
+// ======================= 2. 本地儲存鍵值與全域狀態 =======================
 const STORAGE_KEYS = {
-  EXERCISES: 'ironlog_pro_exercises',
-  HISTORY: 'ironlog_pro_history',
-  ACTIVE_WORKOUT: 'ironlog_pro_active_workout',
-  SETTINGS: 'ironlog_pro_settings'
+  EXERCISES: 'ironlog_v4_exercises',
+  ROUTINES: 'ironlog_v4_routines',
+  WEEKLY_SPLIT: 'ironlog_v4_weekly_split',
+  HISTORY: 'ironlog_v4_history',
+  ACTIVE_WORKOUT: 'ironlog_v4_active_workout'
 };
-
-// 豐富的歷史真實數據，使首次使用即具備圖表與恢復展示
-const INITIAL_DEMO_HISTORY = [
-  // 6 天前 (深蹲主項)
-  { id: 'h1', date: '2026-10-29', timestamp: 1793260800000, exerciseId: 'squat', exerciseName: '槓鈴頸後深蹲 (Back Squat)', category: '腿部', weight: 110, reps: 5, rpe: 8, setType: 'working', e1rm: 135.6 },
-  { id: 'h2', date: '2026-10-29', timestamp: 1793260860000, exerciseId: 'squat', exerciseName: '槓鈴頸後深蹲 (Back Squat)', category: '腿部', weight: 115, reps: 5, rpe: 8.5, setType: 'working', e1rm: 140.4 },
-  { id: 'h3', date: '2026-10-29', timestamp: 1793260920000, exerciseId: 'squat', exerciseName: '槓鈴頸後深蹲 (Back Squat)', category: '腿部', weight: 120, reps: 5, rpe: 9, setType: 'working', e1rm: 143.9 },
-  // 4 天前 (臥推主項)
-  { id: 'h4', date: '2026-10-31', timestamp: 1793433600000, exerciseId: 'bench-press', exerciseName: '平板槓鈴臥推 (Bench Press)', category: '胸部', weight: 75, reps: 8, rpe: 8, setType: 'working', e1rm: 105.2 },
-  { id: 'h5', date: '2026-10-31', timestamp: 1793433660000, exerciseId: 'bench-press', exerciseName: '平板槓鈴臥推 (Bench Press)', category: '胸部', weight: 80, reps: 8, rpe: 8.5, setType: 'working', e1rm: 110.0 },
-  { id: 'h6', date: '2026-10-31', timestamp: 1793433720000, exerciseId: 'incline-db-press', exerciseName: '上斜啞鈴臥推 (Incline DB Press)', category: '胸部', weight: 28, reps: 10, rpe: 8.5, setType: 'working', e1rm: 42.1 },
-  // 2 天前 (硬舉與背部)
-  { id: 'h7', date: '2026-11-02', timestamp: 1793606400000, exerciseId: 'deadlift', exerciseName: '傳統硬舉 (Conventional Deadlift)', category: '背部', weight: 140, reps: 5, rpe: 8, setType: 'working', e1rm: 172.6 },
-  { id: 'h8', date: '2026-11-02', timestamp: 1793606460000, exerciseId: 'barbell-row', exerciseName: '槓鈴划船 (Barbell Row)', category: '背部', weight: 70, reps: 8, rpe: 8, setType: 'working', e1rm: 98.2 }
-];
 
 const state = {
   exercises: [],
+  routines: [],
+  weeklySplit: {},
   history: [],
-  settings: {
-    barWeight: 20,
-    restDuration: 90
-  },
-  // 當前進行中的訓練工作表 (Workout Sheet)
-  activeWorkout: {
-    startTime: Date.now(),
-    exercises: [
-      {
-        exerciseId: 'bench-press',
-        sets: [
-          { id: 's1', setType: 'working', weight: 80, reps: 8, rpe: 8, isCompleted: false },
-          { id: 's2', setType: 'working', weight: 80, reps: 8, rpe: 8, isCompleted: false },
-          { id: 's3', setType: 'working', weight: 80, reps: 8, rpe: 8.5, isCompleted: false }
-        ]
-      },
-      {
-        exerciseId: 'incline-db-press',
-        sets: [
-          { id: 's4', setType: 'working', weight: 30, reps: 10, rpe: 8, isCompleted: false },
-          { id: 's5', setType: 'working', weight: 30, reps: 10, rpe: 8.5, isCompleted: false }
-        ]
-      }
-    ]
-  },
+  activeWorkout: null,
   currentNav: 'tab-workout',
-  // 計時器
+
+  // 獨立手動組間計時器狀態 (不干擾連續動作)
   timer: {
     intervalId: null,
-    remainingSeconds: 0,
+    totalSeconds: 90,
+    remainingSeconds: 90,
     isRunning: false
   },
-  // 抽屜臨時狀態
-  currentPlateTarget: {
-    weight: 80,
-    originSetRef: null
+
+  // 編輯中的課表暫存
+  editingRoutine: null,
+
+  // 動作選擇器目前目標 (是加入到 activeWorkout 還是 editingRoutine)
+  pickerTarget: {
+    mode: 'workout' // 'workout' | 'routine'
   },
-  currentSwapExerciseId: null,
-  // Chart.js 實例快取
+
+  // 僅今日替換動作目標
+  swapTarget: {
+    exerciseIndex: null,
+    originalExerciseId: null
+  },
+
+  // 圖表實例快取
   charts: {
     strength: null,
     muscle: null
   }
 };
 
-// ======================= 3. 音效與震動回饋 =======================
-class HapticFeedback {
+// ======================= 3. 音效與震動管理器 =======================
+class SoundHaptics {
   constructor() {
     this.audioCtx = null;
   }
-
-  initAudio() {
+  init() {
     if (!this.audioCtx) {
       const AC = window.AudioContext || window.webkitAudioContext;
       if (AC) this.audioCtx = new AC();
     }
   }
-
-  beep(freq = 880, type = 'sine', duration = 0.15) {
+  beep(freq = 880, type = 'sine', duration = 0.12) {
     try {
-      this.initAudio();
+      this.init();
       if (!this.audioCtx) return;
       if (this.audioCtx.state === 'suspended') this.audioCtx.resume();
       const osc = this.audioCtx.createOscillator();
       const gain = this.audioCtx.createGain();
       osc.type = type;
       osc.frequency.setValueAtTime(freq, this.audioCtx.currentTime);
-      gain.gain.setValueAtTime(0.1, this.audioCtx.currentTime);
+      gain.gain.setValueAtTime(0.08, this.audioCtx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, this.audioCtx.currentTime + duration);
       osc.connect(gain);
       gain.connect(this.audioCtx.destination);
@@ -265,346 +196,343 @@ class HapticFeedback {
       osc.stop(this.audioCtx.currentTime + duration);
     } catch (e) {}
   }
-
-  playCheckSound() {
+  checkSound() {
     this.beep(880, 'sine', 0.08);
     this.vibrate(25);
   }
-
-  playPRCelebration() {
+  prSound() {
     this.beep(523, 'triangle', 0.1);
-    setTimeout(() => this.beep(659, 'triangle', 0.1), 100);
-    setTimeout(() => this.beep(784, 'triangle', 0.12), 200);
-    setTimeout(() => this.beep(1046, 'sine', 0.35), 320);
-    this.vibrate([80, 50, 120, 50, 200]);
+    setTimeout(() => this.beep(659, 'triangle', 0.1), 90);
+    setTimeout(() => this.beep(784, 'triangle', 0.12), 180);
+    setTimeout(() => this.beep(1046, 'sine', 0.3), 290);
+    this.vibrate([60, 40, 100, 40, 200]);
   }
-
-  playTimerDone() {
+  timerDone() {
     this.beep(784, 'square', 0.12);
-    setTimeout(() => this.beep(880, 'square', 0.12), 160);
-    setTimeout(() => this.beep(1046, 'square', 0.3), 320);
-    this.vibrate([150, 100, 150, 100, 300]);
+    setTimeout(() => this.beep(880, 'square', 0.12), 150);
+    setTimeout(() => this.beep(1046, 'square', 0.3), 300);
+    this.vibrate([150, 100, 150, 100, 250]);
   }
-
   vibrate(pattern = 25) {
     if ('vibrate' in navigator) navigator.vibrate(pattern);
   }
 }
+const sound = new SoundHaptics();
 
-const feedback = new HapticFeedback();
-
-// ======================= 4. 計算函式 (e1RM, 槓片, 肌群恢復) =======================
-
-function calculateE1RM(weight, reps, rpe = 8) {
-  if (weight <= 0 || reps <= 0) return 0;
-  const repKey = Math.min(Math.max(1, Math.round(reps)), 12);
-  const rpeKey = Math.min(Math.max(6, rpe), 10);
-
-  if (RTS_RPE_TABLE[repKey] && RTS_RPE_TABLE[repKey][rpeKey]) {
-    return Math.round((weight / RTS_RPE_TABLE[repKey][rpeKey]) * 10) / 10;
-  }
-  const rir = Math.max(0, 10 - rpe);
-  return Math.round((weight * (1 + (reps + rir) / 30)) * 10) / 10;
-}
-
-function calculatePlates(totalWeight, barWeight = 20) {
-  if (totalWeight < barWeight) {
-    return { sideWeight: 0, plates: [], remainder: 0, isValid: false };
-  }
-  const sideWeight = (totalWeight - barWeight) / 2;
-  let remaining = sideWeight;
-  const plates = [];
-
-  for (const spec of PLATE_SPECS) {
-    if (remaining <= 0) break;
-    const count = Math.floor((remaining + 0.0001) / spec.weight);
-    if (count > 0) {
-      plates.push({ ...spec, count });
-      remaining = Math.round((remaining - count * spec.weight) * 100) / 100;
-    }
-  }
-  return { sideWeight, plates, remainder: remaining, isValid: true };
-}
-
-/**
- * Fitbod 風格肌群疲勞恢復模型
- * 依據距今訓練天數與近 7 天總訓練組數計算恢復度 (0~100%)
- */
-function calculateMuscleRecovery() {
-  const muscleGroups = ['胸部', '背部', '腿部', '肩部', '手臂/核心'];
-  const now = Date.now();
-  const ONE_DAY_MS = 24 * 60 * 60 * 1000;
-
-  const results = {};
-
-  muscleGroups.forEach(group => {
-    // 篩選屬於該肌群的歷史組數
-    const groupLogs = state.history.filter(h => {
-      const ex = state.exercises.find(e => e.id === h.exerciseId);
-      return (ex && ex.category === group) || h.category === group;
-    }).sort((a, b) => b.timestamp - a.timestamp);
-
-    if (groupLogs.length === 0) {
-      // 從未訓練過，100% 恢復
-      results[group] = {
-        pct: 100,
-        daysAgo: null,
-        recentSets: 0,
-        statusText: '完全充血恢復',
-        color: 'text-hevy-green',
-        bg: 'bg-hevy-green'
-      };
-      return;
-    }
-
-    const lastLog = groupLogs[0];
-    const daysAgo = Math.max(0, Math.floor((now - lastLog.timestamp) / ONE_DAY_MS));
-
-    // 計算過去 7 天的總組數
-    const sevenDaysAgo = now - 7 * ONE_DAY_MS;
-    const recentSets = groupLogs.filter(h => h.timestamp >= sevenDaysAgo).length;
-
-    let recoveryPct = 100;
-    if (daysAgo === 0) {
-      recoveryPct = Math.max(15, 30 - recentSets * 2);
-    } else if (daysAgo === 1) {
-      recoveryPct = Math.min(65, 45 + (10 - recentSets) * 2);
-    } else if (daysAgo === 2) {
-      recoveryPct = Math.min(85, 75 + (10 - recentSets));
-    } else {
-      recoveryPct = 100;
-    }
-
-    let statusText = '完全充血恢復';
-    let color = 'text-hevy-green';
-    let bg = 'bg-hevy-green';
-
-    if (recoveryPct < 40) {
-      statusText = '疲勞修復中';
-      color = 'text-rose-400';
-      bg = 'bg-rose-500';
-    } else if (recoveryPct < 80) {
-      statusText = '恢復過渡中';
-      color = 'text-amber-400';
-      bg = 'bg-amber-500';
-    }
-
-    results[group] = {
-      pct: Math.round(recoveryPct),
-      daysAgo,
-      recentSets,
-      statusText,
-      color,
-      bg
-    };
-  });
-
-  return results;
-}
-
-// 取得某動作的歷史最佳 PR 與前次表現
-function getExerciseHistoryStats(exerciseId) {
-  const logs = state.history.filter(h => h.exerciseId === exerciseId);
-  if (logs.length === 0) {
-    return { lastSet: null, bestWeight: 0, bestE1rm: 0 };
-  }
-
-  // 排序找出最新一組
-  const sortedByTime = [...logs].sort((a, b) => b.timestamp - a.timestamp);
-  const lastSet = sortedByTime[0];
-
-  const bestWeight = Math.max(...logs.map(l => l.weight || 0));
-  const bestE1rm = Math.max(...logs.map(l => l.e1rm || 0));
-
-  return { lastSet, bestWeight, bestE1rm };
-}
-
-// ======================= 5. 資料持久化 =======================
-function loadLocalData() {
+// ======================= 4. 資料持久化與初始化 =======================
+function loadState() {
   try {
     const rawEx = localStorage.getItem(STORAGE_KEYS.EXERCISES);
     state.exercises = rawEx ? JSON.parse(rawEx) : [...DEFAULT_EXERCISES];
 
+    const rawRoutines = localStorage.getItem(STORAGE_KEYS.ROUTINES);
+    state.routines = rawRoutines ? JSON.parse(rawRoutines) : [...DEFAULT_ROUTINES];
+
+    const rawSplit = localStorage.getItem(STORAGE_KEYS.WEEKLY_SPLIT);
+    state.weeklySplit = rawSplit ? JSON.parse(rawSplit) : { ...DEFAULT_WEEKLY_SPLIT };
+
     const rawHist = localStorage.getItem(STORAGE_KEYS.HISTORY);
-    state.history = rawHist ? JSON.parse(rawHist) : [...INITIAL_DEMO_HISTORY];
+    state.history = rawHist ? JSON.parse(rawHist) : [...INITIAL_HISTORY];
 
     const rawWorkout = localStorage.getItem(STORAGE_KEYS.ACTIVE_WORKOUT);
     if (rawWorkout) {
       state.activeWorkout = JSON.parse(rawWorkout);
-    }
-
-    const rawSettings = localStorage.getItem(STORAGE_KEYS.SETTINGS);
-    if (rawSettings) {
-      state.settings = { ...state.settings, ...JSON.parse(rawSettings) };
+    } else {
+      // 依當前星期幾預設載入今日排程範本
+      const day = new Date().getDay();
+      const routineId = state.weeklySplit[day] || state.routines[0].id;
+      loadRoutineIntoActiveWorkout(routineId, false);
     }
   } catch (e) {
-    console.error('Storage load failed', e);
+    console.error('Storage load error', e);
     state.exercises = [...DEFAULT_EXERCISES];
-    state.history = [...INITIAL_DEMO_HISTORY];
+    state.routines = [...DEFAULT_ROUTINES];
+    state.weeklySplit = { ...DEFAULT_WEEKLY_SPLIT };
+    state.history = [...INITIAL_HISTORY];
+    loadRoutineIntoActiveWorkout(state.routines[0].id, false);
   }
 }
 
-function saveLocalData() {
+function saveState() {
   try {
     localStorage.setItem(STORAGE_KEYS.EXERCISES, JSON.stringify(state.exercises));
+    localStorage.setItem(STORAGE_KEYS.ROUTINES, JSON.stringify(state.routines));
+    localStorage.setItem(STORAGE_KEYS.WEEKLY_SPLIT, JSON.stringify(state.weeklySplit));
     localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(state.history));
     localStorage.setItem(STORAGE_KEYS.ACTIVE_WORKOUT, JSON.stringify(state.activeWorkout));
-    localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(state.settings));
   } catch (e) {
-    console.error('Storage save failed', e);
+    console.error('Storage save error', e);
   }
 }
 
-// ======================= 6. UI 渲染：訓練工作表 (Workout Sheet) =======================
+// 根據歷史紀錄找出某動作的「前次最佳表現 (Ghost Data)」
+function getExerciseGhostData(exerciseId) {
+  const logs = state.history
+    .filter(h => h.exerciseId === exerciseId && h.setType === 'working')
+    .sort((a, b) => b.timestamp - a.timestamp);
 
-function renderWorkoutSheet() {
-  const container = document.getElementById('workoutSheetsContainer');
-  const summaryBadge = document.getElementById('todaySummaryStats');
-  container.innerHTML = '';
+  if (logs.length === 0) return null;
+  const lastDate = logs[0].date;
+  const sessionLogs = logs.filter(h => h.date === lastDate);
+  // 取該次訓練重量最高的一組
+  const bestSet = sessionLogs.reduce((max, cur) => cur.weight > max.weight ? cur : max, sessionLogs[0]);
+  return bestSet;
+}
 
-  let totalCompletedSets = 0;
-  let totalVolumeKg = 0;
-
-  // 渲染頂部肌群恢復快速走馬燈膠囊
-  renderQuickRecoveryCapsules();
-
-  if (state.activeWorkout.exercises.length === 0) {
-    container.innerHTML = `
-      <div class="text-center py-12 bg-iron-900 border border-iron-800 rounded-2xl p-6 space-y-3">
-        <i data-lucide="dumbbell" class="w-8 h-8 text-slate-500 mx-auto"></i>
-        <h3 class="font-bold text-slate-300 text-sm">今日課表尚無動作</h3>
-        <p class="text-xs text-slate-500">點擊下方「＋ 新增動作」開始今日高強度訓練！</p>
-      </div>
-    `;
-    summaryBadge.textContent = '0 組 • 0 kg 容量';
-    if (window.lucide) lucide.createIcons();
-    return;
+// 將課表範本載入到現場訓練表
+function loadRoutineIntoActiveWorkout(routineId, overwriteConfirm = true) {
+  if (overwriteConfirm && state.activeWorkout && state.activeWorkout.exercises.some(e => e.sets.some(s => s.isCompleted))) {
+    if (!confirm('當前訓練有尚未結算的完成組數，確定要切換並重新載入新課表嗎？')) return;
   }
 
-  state.activeWorkout.exercises.forEach((item, exIndex) => {
-    const exObj = state.exercises.find(e => e.id === item.exerciseId) || { name: '未知動作', category: '全身' };
-    const stats = getExerciseHistoryStats(item.exerciseId);
+  const routine = state.routines.find(r => r.id === routineId) || state.routines[0];
+  const mobility = MOBILITY_PROTOCOLS[routine.category] || MOBILITY_PROTOCOLS['全身'];
 
-    // 計算該動作超負荷建議
-    let overloadTipText = '建立基準數據';
-    if (stats.lastSet) {
-      overloadTipText = `上次 ${stats.lastSet.weight}kg × ${stats.lastSet.reps} ➔ 建議突破：${stats.lastSet.weight + 2.5}kg 或 ${stats.lastSet.reps + 1}次`;
-    }
+  state.activeWorkout = {
+    routineId: routine.id,
+    routineName: routine.name,
+    category: routine.category,
+    startTime: Date.now(),
+    mobilityChecks: mobility.map(m => ({ text: m.text, done: false })),
+    exercises: routine.exercises.map(item => {
+      const ex = state.exercises.find(e => e.id === item.exerciseId) || { name: '自訂動作', isCompound: false, pinNote: '' };
+      const ghost = getExerciseGhostData(item.exerciseId);
+      const defaultWeight = ghost ? ghost.weight : 40;
+      const defaultReps = ghost ? ghost.reps : (item.targetReps || 8);
+
+      const sets = [];
+      const setTotal = item.targetSets || 3;
+      for (let i = 0; i < setTotal; i++) {
+        sets.push({
+          id: 'set-' + Date.now() + '-' + i,
+          setType: 'working',
+          weight: defaultWeight,
+          reps: defaultReps,
+          rpe: 8,
+          isCompleted: false
+        });
+      }
+
+      return {
+        exerciseId: item.exerciseId,
+        isDumbbellEachSide: false, // 是否單手啞鈴算兩側重量
+        pinNote: ex.pinNote || '',
+        sets
+      };
+    })
+  };
+
+  saveState();
+  renderWorkoutSheet();
+}
+
+// 估算 1RM 公式 (Epley + RIR)
+function calculateE1RM(weight, reps, rpe = 8) {
+  if (weight <= 0 || reps <= 0) return 0;
+  const rir = Math.max(0, 10 - rpe);
+  const effectiveReps = reps + rir;
+  return Math.round(weight * (1 + effectiveReps / 30) * 10) / 10;
+}
+
+// 輔助四捨五入至 2.5kg
+function roundTo2_5(val) {
+  return Math.max(20, Math.round(val / 2.5) * 2.5);
+}
+
+// ======================= 5. UI 渲染：現場訓練工作表 (Workout Sheet) =======================
+
+function renderWorkoutSheet() {
+  if (!state.activeWorkout) return;
+
+  // 1. 更新頂部今日課表看板
+  const dayNames = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
+  const currentDay = new Date().getDay();
+  document.getElementById('todayDayNameBadge').textContent = dayNames[currentDay];
+  document.getElementById('activeRoutineTitle').textContent = state.activeWorkout.routineName;
+
+  // 2. 更新頂部進度條文字
+  let totalSetsCount = 0;
+  let completedSetsCount = 0;
+  state.activeWorkout.exercises.forEach(ex => {
+    ex.sets.forEach(s => {
+      totalSetsCount++;
+      if (s.isCompleted) completedSetsCount++;
+    });
+  });
+  const progressPct = totalSetsCount > 0 ? Math.round((completedSetsCount / totalSetsCount) * 100) : 0;
+  document.getElementById('headerSetsProgressText').textContent = `${completedSetsCount} / ${totalSetsCount} 組 (${progressPct}%)`;
+
+  // 3. 渲染部位熱身與活動度打卡項目
+  renderMobilitySection();
+
+  // 4. 渲染動作卡片清單
+  const container = document.getElementById('workoutCardsContainer');
+  container.innerHTML = '';
+
+  state.activeWorkout.exercises.forEach((item, exIdx) => {
+    const exObj = state.exercises.find(e => e.id === item.exerciseId) || { name: '自訂動作', isCompound: false };
+    const ghost = getExerciseGhostData(item.exerciseId);
 
     const card = document.createElement('div');
     card.className = 'bg-iron-900 border border-iron-800 rounded-2xl p-4 shadow-xl space-y-3';
 
-    // 卡片標頭：動作名稱 + 快捷按鈕 (槓片、替換、刪除)
+    // 動作卡片標頭
+    const ghostText = ghost ? `上次：${ghost.weight}kg × ${ghost.reps} @ RPE ${ghost.rpe}` : '尚無歷史紀錄';
+
     card.innerHTML = `
-      <div class="flex items-start justify-between">
-        <div>
-          <div class="flex items-center gap-2">
-            <h3 class="font-black text-white text-base tracking-tight">${exObj.name}</h3>
-            <span class="text-[10px] font-bold px-1.5 py-0.2 rounded bg-iron-800 text-slate-300">${exObj.category}</span>
+      <!-- 標題與彈性工具列 -->
+      <div class="space-y-1.5 pb-2 border-b border-iron-800/80">
+        <div class="flex items-start justify-between">
+          <div>
+            <h3 class="font-extrabold text-white text-base tracking-tight">${exObj.name}</h3>
+            <div class="flex items-center gap-2 mt-0.5 text-xs">
+              <span class="text-slate-400 font-mono text-[11px]">${ghostText}</span>
+              <button data-action="toggle-dumbbell" data-ex-index="${exIdx}" class="text-[10px] font-bold px-1.5 py-0.2 rounded transition tap-active ${item.isDumbbellEachSide ? 'bg-accent-blue/20 text-accent-blue border border-accent-blue/40' : 'bg-iron-800 text-slate-400'}">
+                ${item.isDumbbellEachSide ? '單邊 (×2 容量)' : '總重'}
+              </button>
+            </div>
           </div>
-          <div class="text-[11px] text-hevy-green font-semibold mt-0.5 flex items-center gap-1">
-            <i data-lucide="zap" class="w-3 h-3"></i>
-            <span>${overloadTipText}</span>
+
+          <!-- 動作功能按鈕 -->
+          <div class="flex items-center gap-1">
+            ${exObj.isCompound ? `
+              <button data-action="generate-warmup" data-ex-index="${exIdx}" class="p-1.5 rounded-lg bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 text-xs font-bold flex items-center gap-1 tap-active" title="產生熱身組">
+                <i data-lucide="flame" class="w-3.5 h-3.5"></i>
+                <span class="text-[10px]">熱身組</span>
+              </button>
+            ` : ''}
+            <button data-action="swap-today" data-ex-index="${exIdx}" data-ex-id="${item.exerciseId}" class="p-1.5 rounded-lg bg-iron-800 hover:bg-iron-750 text-slate-300 hover:text-accent-blue text-xs flex items-center gap-1 tap-active" title="僅今日臨時替換動作">
+              <i data-lucide="arrow-left-right" class="w-3.5 h-3.5 text-accent-blue"></i>
+              <span class="text-[10px]">替換</span>
+            </button>
+            <button data-action="remove-workout-ex" data-ex-index="${exIdx}" class="p-1.5 rounded-lg bg-iron-800 hover:bg-rose-950 text-slate-500 hover:text-rose-400 text-xs tap-active" title="移除此動作">
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+            </button>
           </div>
         </div>
 
-        <div class="flex items-center gap-1">
-          <button data-action="plate" data-ex-index="${exIndex}" class="p-1.5 rounded-lg bg-iron-800 hover:bg-iron-750 text-slate-300 hover:text-hevy-amber text-xs flex items-center gap-1" title="槓片計算與熱身">
-            <i data-lucide="disc" class="w-3.5 h-3.5 text-hevy-amber"></i>
-            <span class="text-[10px] font-bold font-mono">槓片</span>
-          </button>
-          <button data-action="swap" data-ex-id="${item.exerciseId}" data-ex-index="${exIndex}" class="p-1.5 rounded-lg bg-iron-800 hover:bg-iron-750 text-slate-300 hover:text-hevy-blue text-xs flex items-center gap-1" title="替代動作">
-            <i data-lucide="arrow-left-right" class="w-3.5 h-3.5 text-hevy-blue"></i>
-          </button>
-          <button data-action="remove-ex" data-ex-index="${exIndex}" class="p-1.5 rounded-lg bg-iron-800 hover:bg-rose-900/40 text-slate-500 hover:text-rose-400 text-xs" title="移除動作">
-            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-          </button>
+        <!-- 動作常駐固定備註 (Pin Note) -->
+        <div class="flex items-center gap-1.5 bg-iron-950/80 px-2.5 py-1 rounded-lg border border-iron-800/80 text-xs">
+          <i data-lucide="pin" class="w-3 h-3 text-accent-amber shrink-0"></i>
+          <input type="text" value="${item.pinNote || ''}" data-action="edit-pin-note" data-ex-index="${exIdx}" data-ex-id="${item.exerciseId}"
+            placeholder="點此設定常駐備註 (如：滑輪座椅第3孔、史密斯空槓10kg...)"
+            class="w-full bg-transparent text-[11px] text-slate-300 placeholder-slate-600 focus:outline-none">
         </div>
       </div>
 
-      <!-- Hevy 經典表格清單 (Workout Sheet) -->
-      <div class="space-y-1.5">
-        <div class="grid grid-cols-12 text-[10px] font-bold font-mono text-slate-400 px-2 py-1">
+      <!-- 流水線表格表頭 -->
+      <div class="space-y-1">
+        <div class="grid grid-cols-12 text-[10px] font-bold font-mono text-slate-400 px-2 py-0.5">
           <span class="col-span-2">組別</span>
-          <span class="col-span-3">前次表現</span>
+          <span class="col-span-3">前次對照</span>
           <span class="col-span-3 text-center">公斤 (KG)</span>
           <span class="col-span-2 text-center">次數</span>
           <span class="col-span-2 text-center">完成</span>
         </div>
 
-        <div class="space-y-1" id="setsContainer-${exIndex}">
-          <!-- 組別行 -->
+        <!-- 組別清單容器 -->
+        <div class="space-y-1.5" id="setsContainer-${exIdx}">
+          <!-- 動態插入每一組 -->
         </div>
 
-        <!-- 新增組數按鈕 -->
-        <button data-action="add-set" data-ex-index="${exIndex}" class="w-full py-2 rounded-xl bg-iron-850 hover:bg-iron-800 border border-dashed border-iron-750 text-xs font-bold text-slate-400 hover:text-white flex items-center justify-center gap-1 mt-1 transition">
-          <i data-lucide="plus" class="w-3.5 h-3.5"></i> 新增一組
-        </button>
+        <!-- 卡片底部：新增一組按鈕 -->
+        <div class="pt-1">
+          <button data-action="add-set" data-ex-index="${exIdx}" class="w-full py-2 rounded-xl bg-iron-850 hover:bg-iron-800 border border-dashed border-iron-750 text-xs font-bold text-slate-300 flex items-center justify-center gap-1 tap-active">
+            <i data-lucide="plus" class="w-3.5 h-3.5"></i> 新增一組
+          </button>
+        </div>
       </div>
     `;
 
     container.appendChild(card);
 
-    // 渲染該動作的所有組數行
-    const setsBox = card.querySelector(`#setsContainer-${exIndex}`);
-    item.sets.forEach((set, setIndex) => {
-      if (set.isCompleted) {
-        totalCompletedSets++;
-        totalVolumeKg += (set.weight * set.reps);
-      }
-
-      const row = document.createElement('div');
+    // 渲染組別列表
+    const setsBox = card.querySelector(`#setsContainer-${exIdx}`);
+    item.sets.forEach((set, setIdx) => {
       const isDone = set.isCompleted;
+      const row = document.createElement('div');
+      row.className = `p-1.5 rounded-xl border transition ${isDone ? 'bg-iron-950/40 border-iron-850/60 text-slate-500' : 'bg-iron-950 border-iron-800 text-white'}`;
 
-      // 類型標籤 (W: 熱身, 數字: 正式組, D: 遞減, F: 力竭)
-      let setTypeBadge = `${setIndex + 1}`;
-      let setTypeClass = 'bg-iron-800 text-slate-300';
+      // 組別標籤
+      let typeLabel = `${setIdx + 1}`;
+      let typeColor = 'bg-iron-800 text-slate-300';
       if (set.setType === 'warmup') {
-        setTypeBadge = 'W';
-        setTypeClass = 'bg-amber-500/20 text-amber-400';
+        typeLabel = 'W';
+        typeColor = 'bg-orange-500/20 text-orange-400 border border-orange-500/40';
       } else if (set.setType === 'drop') {
-        setTypeBadge = 'D';
-        setTypeClass = 'bg-purple-500/20 text-purple-400';
+        typeLabel = 'D';
+        typeColor = 'bg-purple-500/20 text-purple-400 border border-purple-500/40';
       } else if (set.setType === 'failure') {
-        setTypeBadge = 'F';
-        setTypeClass = 'bg-rose-500/20 text-rose-400';
+        typeLabel = 'F';
+        typeColor = 'bg-rose-500/20 text-rose-400 border border-rose-500/40';
       }
 
-      row.className = `grid grid-cols-12 items-center gap-1 p-1.5 rounded-xl transition ${isDone ? 'bg-iron-950/40 text-slate-500' : 'bg-iron-950/90 text-white'}`;
-      
-      const prevText = stats.lastSet ? `${stats.lastSet.weight}k×${stats.lastSet.reps}` : '—';
+      const ghostStr = ghost ? `${ghost.weight}k×${ghost.reps}` : '—';
 
       row.innerHTML = `
-        <!-- 組別標籤 (點擊可切換 熱身/正式) -->
-        <div class="col-span-2 flex items-center">
-          <button data-action="toggle-set-type" data-ex-index="${exIndex}" data-set-index="${setIndex}" class="w-7 h-7 rounded-lg text-xs font-mono font-bold flex items-center justify-center ${setTypeClass} tap-active" title="點擊切換熱身/正式組">
-            ${setTypeBadge}
-          </button>
+        <div class="grid grid-cols-12 items-center gap-1">
+          <!-- 組別按鈕 (點擊切換 1/2/3/W/D/F) -->
+          <div class="col-span-2 flex items-center">
+            <button data-action="toggle-set-type" data-ex-index="${exIdx}" data-set-index="${setIdx}"
+              class="w-7 h-7 rounded-lg text-xs font-mono font-bold flex items-center justify-center ${typeColor} tap-active" title="點擊切換類型">
+              ${typeLabel}
+            </button>
+          </div>
+
+          <!-- 前次淡灰色對照 -->
+          <div class="col-span-3 text-[11px] font-mono text-slate-500 truncate">
+            ${ghostStr}
+          </div>
+
+          <!-- 重量欄位 -->
+          <div class="col-span-3">
+            <input type="number" step="0.5" value="${set.weight}" data-field="weight" data-ex-index="${exIdx}" data-set-index="${setIdx}"
+              class="w-full bg-iron-900 border border-iron-750 focus:border-accent-green text-center text-sm font-mono font-black py-1.5 rounded-lg text-white ${isDone ? 'opacity-60' : ''}" inputmode="decimal">
+          </div>
+
+          <!-- 次數欄位 -->
+          <div class="col-span-2">
+            <input type="number" step="1" value="${set.reps}" data-field="reps" data-ex-index="${exIdx}" data-set-index="${setIdx}"
+              class="w-full bg-iron-900 border border-iron-750 focus:border-accent-green text-center text-sm font-mono font-bold py-1.5 rounded-lg text-white ${isDone ? 'opacity-60' : ''}" inputmode="numeric">
+          </div>
+
+          <!-- 打勾按鈕 (純打勾記錄與震動，不自動強制開跑計時) -->
+          <div class="col-span-2 flex justify-center">
+            <button data-action="toggle-set-complete" data-ex-index="${exIdx}" data-set-index="${setIdx}"
+              class="w-8 h-8 rounded-xl font-bold flex items-center justify-center transition tap-active ${isDone ? 'bg-accent-green text-iron-950 shadow-md shadow-accent-green/30 check-pop' : 'bg-iron-800 border border-iron-700 text-slate-400 hover:text-white'}">
+              <i data-lucide="check" class="w-4 h-4 stroke-[3]"></i>
+            </button>
+          </div>
         </div>
 
-        <!-- 前次表現紀錄 -->
-        <div class="col-span-3 text-[11px] font-mono text-slate-500 truncate">
-          ${prevText}
-        </div>
+        <!-- 現場快填輔助列 (+1.25 / +2.5 / +5 / 複製上一組 / RPE標記) -->
+        <div class="flex items-center justify-between pt-1.5 mt-1 border-t border-iron-850/80 text-[10px]">
+          <div class="flex items-center gap-1">
+            <span class="text-slate-500 font-mono">累加:</span>
+            <button data-action="quick-add-weight" data-delta="1.25" data-ex-index="${exIdx}" data-set-index="${setIdx}" class="px-1.5 py-0.5 rounded bg-iron-850 hover:bg-iron-800 text-slate-300 font-mono tap-active">+1.25</button>
+            <button data-action="quick-add-weight" data-delta="2.5" data-ex-index="${exIdx}" data-set-index="${setIdx}" class="px-1.5 py-0.5 rounded bg-iron-850 hover:bg-iron-800 text-slate-300 font-mono tap-active">+2.5</button>
+            <button data-action="quick-add-weight" data-delta="5" data-ex-index="${exIdx}" data-set-index="${setIdx}" class="px-1.5 py-0.5 rounded bg-iron-850 hover:bg-iron-800 text-slate-300 font-mono tap-active">+5</button>
+            ${setIdx > 0 ? `
+              <button data-action="copy-last-set" data-ex-index="${exIdx}" data-set-index="${setIdx}" class="ml-1 px-1.5 py-0.5 rounded bg-iron-800 hover:bg-iron-750 text-accent-green font-mono flex items-center gap-0.5 tap-active" title="複製上一組重量與次數">
+                <i data-lucide="copy" class="w-2.5 h-2.5"></i> 同上
+              </button>
+            ` : ''}
+          </div>
 
-        <!-- 重量輸入框 -->
-        <div class="col-span-3">
-          <input type="number" step="0.5" value="${set.weight}" data-field="weight" data-ex-index="${exIndex}" data-set-index="${setIndex}"
-            class="w-full bg-iron-900 border border-iron-750 focus:border-hevy-green text-center text-sm font-mono font-black py-1.5 rounded-lg text-white ${isDone ? 'opacity-60' : ''}" inputmode="decimal">
-        </div>
-
-        <!-- 次數輸入框 -->
-        <div class="col-span-2">
-          <input type="number" step="1" value="${set.reps}" data-field="reps" data-ex-index="${exIndex}" data-set-index="${setIndex}"
-            class="w-full bg-iron-900 border border-iron-750 focus:border-hevy-green text-center text-sm font-mono font-bold py-1.5 rounded-lg text-white ${isDone ? 'opacity-60' : ''}" inputmode="numeric">
-        </div>
-
-        <!-- 完成打勾按鈕 (Hevy 招牌 Checkmark) -->
-        <div class="col-span-2 flex justify-center">
-          <button data-action="toggle-complete" data-ex-index="${exIndex}" data-set-index="${setIndex}"
-            class="w-8 h-8 rounded-xl font-bold flex items-center justify-center transition tap-active ${isDone ? 'bg-hevy-green text-iron-950 shadow-md shadow-hevy-green/30 check-pop' : 'bg-iron-800 border border-iron-700 text-slate-500 hover:text-slate-300'}">
-            <i data-lucide="check" class="w-4 h-4 stroke-[3]"></i>
-          </button>
+          <!-- RPE 標記 -->
+          <div class="flex items-center gap-1">
+            <span class="text-slate-500 font-mono">RPE:</span>
+            <select data-field="rpe" data-ex-index="${exIdx}" data-set-index="${setIdx}" class="bg-iron-850 border border-iron-750 text-slate-300 rounded px-1 py-0.5 font-mono text-[10px] focus:outline-none">
+              <option value="10" ${set.rpe == 10 ? 'selected' : ''}>10 (力竭)</option>
+              <option value="9.5" ${set.rpe == 9.5 ? 'selected' : ''}>9.5</option>
+              <option value="9" ${set.rpe == 9 ? 'selected' : ''}>9 (保留1)</option>
+              <option value="8.5" ${set.rpe == 8.5 ? 'selected' : ''}>8.5</option>
+              <option value="8" ${set.rpe == 8 ? 'selected' : ''}>8 (保留2)</option>
+              <option value="7.5" ${set.rpe == 7.5 ? 'selected' : ''}>7.5</option>
+              <option value="7" ${set.rpe == 7 ? 'selected' : ''}>7 (保留3)</option>
+              <option value="6" ${set.rpe == 6 ? 'selected' : ''}>6</option>
+            </select>
+          </div>
         </div>
       `;
 
@@ -612,36 +540,266 @@ function renderWorkoutSheet() {
     });
   });
 
-  summaryBadge.textContent = `${totalCompletedSets} 組完成 • ${totalVolumeKg.toLocaleString()} kg 容量`;
   if (window.lucide) lucide.createIcons();
 }
 
-// 快速肌群恢復走馬燈膠囊
-function renderQuickRecoveryCapsules() {
-  const container = document.getElementById('quickRecoveryScroll');
-  const recoveryMap = calculateMuscleRecovery();
+// 渲染部位動態熱身打卡項目
+function renderMobilitySection() {
+  const container = document.getElementById('mobilityItemsList');
+  const tag = document.getElementById('warmupCategoryTag');
+  tag.textContent = state.activeWorkout.category || '活動度';
   container.innerHTML = '';
 
-  for (const [groupName, rec] of Object.entries(recoveryMap)) {
-    const pill = document.createElement('div');
-    pill.className = 'flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-iron-900 border border-iron-800 text-[11px] shrink-0 font-medium cursor-pointer tap-active';
-    pill.innerHTML = `
-      <span class="w-2 h-2 rounded-full ${rec.bg}"></span>
-      <span class="text-slate-300">${groupName}</span>
-      <span class="font-mono font-bold ${rec.color}">${rec.pct}%</span>
+  state.activeWorkout.mobilityChecks.forEach((item, idx) => {
+    const row = document.createElement('div');
+    row.className = `flex items-center justify-between p-2 rounded-xl text-xs transition cursor-pointer tap-active ${item.done ? 'bg-iron-950/40 text-slate-500 line-through' : 'bg-iron-950 text-slate-200'}`;
+    row.innerHTML = `
+      <div class="flex items-center gap-2">
+        <span class="w-4 h-4 rounded-md border flex items-center justify-center ${item.done ? 'bg-orange-500 border-orange-500 text-iron-950' : 'border-iron-700'}">
+          ${item.done ? '<i data-lucide="check" class="w-3 h-3 stroke-[3]"></i>' : ''}
+        </span>
+        <span class="font-medium">${item.text}</span>
+      </div>
+      <span class="text-[10px] font-mono ${item.done ? 'text-slate-600' : 'text-orange-400'}">${item.done ? '已完成' : '打卡'}</span>
     `;
-    pill.addEventListener('click', () => switchNavTab('tab-recovery'));
-    container.appendChild(pill);
-  }
+
+    row.addEventListener('click', () => {
+      item.done = !item.done;
+      saveState();
+      renderMobilitySection();
+      sound.vibrate(20);
+    });
+
+    container.appendChild(row);
+  });
+
+  if (window.lucide) lucide.createIcons();
 }
 
-// ======================= 7. UI 渲染：進步數據與 Chart.js 分析 =======================
+// ======================= 6. 複合動作一鍵產生熱身組 =======================
+function generateWarmupSets(exIndex) {
+  const item = state.activeWorkout.exercises[exIndex];
+  // 找出該動作第一個正式組重量
+  const firstWorking = item.sets.find(s => s.setType === 'working') || item.sets[0];
+  const targetWeight = firstWorking ? firstWorking.weight : 60;
+
+  if (targetWeight <= 25) {
+    alertToast('目標重量較輕，直接以空槓或正式組進行即可。');
+    return;
+  }
+
+  // 計算 3~4 組階梯遞增組 (四捨五入至最接近 2.5kg)
+  const w1 = 20; // 空槓 20kg
+  const w2 = roundTo2_5(20 + (targetWeight - 20) * 0.50); // 50%
+  const w3 = roundTo2_5(20 + (targetWeight - 20) * 0.70); // 70%
+  const w4 = roundTo2_5(20 + (targetWeight - 20) * 0.85); // 85%
+
+  const newWarmups = [
+    { id: 'w-' + Date.now() + '-1', setType: 'warmup', weight: w1, reps: 10, rpe: 6, isCompleted: false },
+    { id: 'w-' + Date.now() + '-2', setType: 'warmup', weight: w2, reps: 5, rpe: 6.5, isCompleted: false },
+    { id: 'w-' + Date.now() + '-3', setType: 'warmup', weight: w3, reps: 3, rpe: 7, isCompleted: false }
+  ];
+
+  if (targetWeight >= 80) {
+    newWarmups.push({
+      id: 'w-' + Date.now() + '-4',
+      setType: 'warmup',
+      weight: w4,
+      reps: 1,
+      rpe: 7.5,
+      isCompleted: false
+    });
+  }
+
+  // 移除非正式組，將新熱身組插入在最前面
+  const existingWorkings = item.sets.filter(s => s.setType !== 'warmup');
+  item.sets = [...newWarmups, ...existingWorkings];
+
+  saveState();
+  renderWorkoutSheet();
+  alertToast('已自動插入階梯熱身組！');
+  sound.vibrate(30);
+}
+
+// ======================= 7. UI 渲染：課表範本庫與每週排程 (Routines & Split) =======================
+
+function renderRoutinesView() {
+  // 1. 渲染每週 7 天排程指派器
+  renderWeeklySplitGrid();
+
+  // 2. 渲染課表範本列表
+  const container = document.getElementById('routinesListContainer');
+  const countBadge = document.getElementById('routineCountBadge');
+  countBadge.textContent = `${state.routines.length} 套範本`;
+  container.innerHTML = '';
+
+  state.routines.forEach((routine) => {
+    const card = document.createElement('div');
+    card.className = 'bg-iron-900 border border-iron-800 rounded-2xl p-4 space-y-3 shadow-md';
+
+    const exListHtml = routine.exercises.map(item => {
+      const ex = state.exercises.find(e => e.id === item.exerciseId);
+      return `<span class="inline-block px-2 py-0.5 rounded-md bg-iron-950 border border-iron-800 text-[11px] text-slate-300 mr-1.5 mb-1">${ex ? ex.name : '自訂'} <strong class="text-accent-green font-mono">${item.targetSets}組</strong></span>`;
+    }).join('');
+
+    card.innerHTML = `
+      <div class="flex items-start justify-between">
+        <div>
+          <h3 class="font-extrabold text-white text-base">${routine.name}</h3>
+          <span class="text-[10px] font-bold px-1.5 py-0.2 rounded bg-iron-800 text-accent-green">${routine.category}</span>
+        </div>
+        <div class="flex items-center gap-1">
+          <button data-action="start-routine" data-routine-id="${routine.id}" class="px-3 py-1.5 rounded-xl bg-accent-green hover:bg-emerald-400 text-iron-950 text-xs font-black flex items-center gap-1 tap-active">
+            <i data-lucide="play" class="w-3.5 h-3.5 fill-current"></i> 開始此課表
+          </button>
+          <button data-action="edit-routine" data-routine-id="${routine.id}" class="p-1.5 rounded-lg bg-iron-800 hover:bg-iron-750 text-slate-300 text-xs tap-active" title="編輯課表">
+            <i data-lucide="edit-2" class="w-3.5 h-3.5"></i>
+          </button>
+          <button data-action="delete-routine" data-routine-id="${routine.id}" class="p-1.5 rounded-lg bg-iron-800 hover:bg-rose-950 text-slate-500 hover:text-rose-400 text-xs tap-active" title="刪除課表">
+            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="pt-1">
+        ${exListHtml}
+      </div>
+    `;
+
+    container.appendChild(card);
+  });
+
+  if (window.lucide) lucide.createIcons();
+}
+
+// 渲染週一至週日排程方塊
+function renderWeeklySplitGrid() {
+  const grid = document.getElementById('weeklySplitGrid');
+  grid.innerHTML = '';
+  const days = [
+    { num: 1, label: '一' },
+    { num: 2, label: '二' },
+    { num: 3, label: '三' },
+    { num: 4, label: '四' },
+    { num: 5, label: '五' },
+    { num: 6, label: '六' },
+    { num: 0, label: '日' }
+  ];
+
+  const currentDay = new Date().getDay();
+
+  days.forEach(d => {
+    const routineId = state.weeklySplit[d.num];
+    const routine = state.routines.find(r => r.id === routineId);
+    const isToday = d.num === currentDay;
+
+    const btn = document.createElement('button');
+    btn.className = `p-2 rounded-xl flex flex-col items-center justify-between text-center transition tap-active border ${isToday ? 'border-accent-green bg-accent-green/10 shadow-sm' : 'border-iron-800 bg-iron-950/80 hover:bg-iron-800'}`;
+
+    const rName = routine ? routine.name.split(' ')[0] : '休';
+
+    btn.innerHTML = `
+      <span class="text-[10px] font-bold ${isToday ? 'text-accent-green' : 'text-slate-400'}">${d.label}</span>
+      <span class="text-[11px] font-black truncate w-full mt-1 ${routine ? 'text-white' : 'text-slate-600'}">${rName}</span>
+    `;
+
+    btn.addEventListener('click', () => {
+      // 點擊循環切換課表指派
+      const routineOptions = [null, ...state.routines.map(r => r.id)];
+      const currentIdx = routineOptions.indexOf(state.weeklySplit[d.num]);
+      const nextIdx = (currentIdx + 1) % routineOptions.length;
+      state.weeklySplit[d.num] = routineOptions[nextIdx];
+      saveState();
+      renderWeeklySplitGrid();
+      sound.vibrate(20);
+    });
+
+    grid.appendChild(btn);
+  });
+}
+
+// 課表編輯器邏輯 (Modal)
+function openRoutineEditor(routineId = null) {
+  const modal = document.getElementById('routineEditorModal');
+  const titleEl = document.getElementById('routineEditorModalTitle');
+  const nameInput = document.getElementById('routineNameInput');
+  const catSelect = document.getElementById('routineCategorySelect');
+
+  if (routineId) {
+    const r = state.routines.find(item => item.id === routineId);
+    state.editingRoutine = JSON.parse(JSON.stringify(r));
+    titleEl.textContent = '編輯課表範本';
+  } else {
+    state.editingRoutine = {
+      id: 'routine-' + Date.now(),
+      name: '自訂新課表',
+      category: '胸部',
+      exercises: [
+        { exerciseId: 'bench-press', targetSets: 4, targetReps: 8 }
+      ]
+    };
+    titleEl.textContent = '新建課表範本';
+  }
+
+  nameInput.value = state.editingRoutine.name;
+  catSelect.value = state.editingRoutine.category;
+
+  renderTemplateExercisesEditor();
+  modal.classList.remove('hidden');
+}
+
+function renderTemplateExercisesEditor() {
+  const list = document.getElementById('templateExercisesList');
+  list.innerHTML = '';
+
+  state.editingRoutine.exercises.forEach((item, idx) => {
+    const ex = state.exercises.find(e => e.id === item.exerciseId) || { name: '自訂' };
+    const row = document.createElement('div');
+    row.className = 'flex items-center justify-between p-2 rounded-xl bg-iron-950 border border-iron-800 text-xs';
+    row.innerHTML = `
+      <div class="flex items-center gap-2">
+        <span class="w-5 h-5 rounded-md bg-iron-800 font-mono text-[11px] font-bold flex items-center justify-center text-slate-400">${idx + 1}</span>
+        <strong class="text-white text-xs truncate max-w-[120px]">${ex.name}</strong>
+      </div>
+
+      <div class="flex items-center gap-1.5">
+        <div class="flex items-center gap-1 font-mono text-[11px]">
+          <input type="number" value="${item.targetSets}" min="1" max="10" data-idx="${idx}" data-field="targetSets"
+            class="w-10 bg-iron-900 border border-iron-750 text-center rounded py-1 text-white">組
+          <span>×</span>
+          <input type="number" value="${item.targetReps}" min="1" max="30" data-idx="${idx}" data-field="targetReps"
+            class="w-10 bg-iron-900 border border-iron-750 text-center rounded py-1 text-white">次
+        </div>
+
+        <button data-action="move-up" data-idx="${idx}" class="p-1 text-slate-400 hover:text-white ${idx === 0 ? 'opacity-30' : ''}" title="上移">
+          <i data-lucide="chevron-up" class="w-3.5 h-3.5"></i>
+        </button>
+        <button data-action="move-down" data-idx="${idx}" class="p-1 text-slate-400 hover:text-white ${idx === state.editingRoutine.exercises.length - 1 ? 'opacity-30' : ''}" title="下移">
+          <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
+        </button>
+        <button data-action="delete-template-ex" data-idx="${idx}" class="p-1 text-slate-500 hover:text-rose-400" title="刪除">
+          <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+        </button>
+      </div>
+    `;
+
+    list.appendChild(row);
+  });
+
+  if (window.lucide) lucide.createIcons();
+}
+
+// ======================= 8. UI 渲染：數據分析與 GitHub 風格熱圖 (Analytics) =======================
 
 function renderAnalyticsView() {
-  // 1. 核心三項指標
-  const totalVolume = state.history.reduce((sum, h) => sum + (h.weight * h.reps), 0);
+  // 1. 計算核心三項指標
+  const totalVolume = state.history.reduce((sum, h) => {
+    const factor = h.isDumbbellEachSide ? 2 : 1;
+    return sum + (h.weight * h.reps * factor);
+  }, 0);
   const totalSets = state.history.length;
-  document.getElementById('statTotalVolume').textContent = (totalVolume >= 1000 ? (totalVolume / 1000).toFixed(1) + 'k' : totalVolume);
+
+  document.getElementById('statTotalVolume').textContent = totalVolume >= 1000 ? (totalVolume / 1000).toFixed(1) + 'k' : totalVolume;
   document.getElementById('statTotalSets').textContent = totalSets;
 
   // 計算歷史 PR 數量
@@ -653,13 +811,15 @@ function renderAnalyticsView() {
   });
   document.getElementById('statTotalPRs').textContent = Object.keys(prMap).length;
 
-  // 2. 填入折線圖動作下拉選單
-  const select = document.getElementById('analyticsExerciseFilter');
+  // 2. 繪製 GitHub 日曆方塊熱圖 (Streak Heatmap)
+  renderHeatmap();
+
+  // 3. 填入折線圖動作選單
+  const select = document.getElementById('analyticsExerciseSelect');
   const currentVal = select.value;
   select.innerHTML = '';
-
-  const availableExIds = [...new Set(state.history.map(h => h.exerciseId))];
-  availableExIds.forEach(id => {
+  const compoundExIds = ['bench-press', 'squat', 'deadlift', 'ohp', 'barbell-row'];
+  compoundExIds.forEach(id => {
     const ex = state.exercises.find(e => e.id === id);
     if (ex) {
       const opt = document.createElement('option');
@@ -669,20 +829,77 @@ function renderAnalyticsView() {
     }
   });
 
-  if (currentVal && availableExIds.includes(currentVal)) {
+  if (currentVal && compoundExIds.includes(currentVal)) {
     select.value = currentVal;
-  } else if (availableExIds.length > 0) {
-    select.value = availableExIds[0];
+  } else {
+    select.value = compoundExIds[0];
   }
 
-  // 3. 繪製估算 1RM 進步折線圖
+  // 4. 繪製折線圖與肌群組數圖
   renderStrengthLineChart(select.value);
-
-  // 4. 繪製各肌群組數分佈長條圖
   renderMuscleVolumeBarChart();
 
-  // 5. 繪製 PR 榮譽牆
-  renderPrGrid(prMap);
+  // 5. 渲染 PR 榮譽牆
+  renderPrHonorGrid(prMap);
+}
+
+// 繪製類似 GitHub Commit 的方塊日曆熱圖
+function renderHeatmap() {
+  const container = document.getElementById('heatmapGridContainer');
+  container.innerHTML = '';
+
+  // 統計過去 60 天內每日的總練容量
+  const daysCount = 63; // 9 週 x 7 天
+  const now = new Date();
+  const dateMap = {};
+
+  // 將歷史紀錄按 YYYY-MM-DD 加總
+  state.history.forEach(h => {
+    const factor = h.isDumbbellEachSide ? 2 : 1;
+    const vol = (h.weight * h.reps * factor) || 0;
+    dateMap[h.date] = (dateMap[h.date] || 0) + vol;
+  });
+
+  // 建立 9 週直行，每行 7 格 (週一到週日)
+  const columns = [];
+  for (let w = 8; w >= 0; w--) {
+    const colDays = [];
+    for (let d = 0; d < 7; d++) {
+      const targetDate = new Date();
+      targetDate.setDate(now.getDate() - (w * 7 + (6 - d)));
+      const dateStr = targetDate.toISOString().split('T')[0];
+      const vol = dateMap[dateStr] || 0;
+      colDays.push({ dateStr, vol });
+    }
+    columns.push(colDays);
+  }
+
+  // 繪製
+  columns.forEach(col => {
+    const colDiv = document.createElement('div');
+    colDiv.className = 'flex flex-col gap-1';
+
+    col.forEach(day => {
+      const cell = document.createElement('div');
+      cell.className = 'w-3.5 h-3.5 rounded-sm transition-transform hover:scale-125 cursor-pointer';
+
+      // 依容量決定深淺 (GitHub 綠)
+      if (day.vol === 0) {
+        cell.className += ' bg-iron-850';
+      } else if (day.vol < 2000) {
+        cell.className += ' bg-emerald-950 border border-emerald-800';
+      } else if (day.vol < 5000) {
+        cell.className += ' bg-emerald-700';
+      } else {
+        cell.className += ' bg-emerald-400 shadow-sm shadow-emerald-400/30';
+      }
+
+      cell.title = `${day.dateStr}：${day.vol > 0 ? `${day.vol.toLocaleString()} kg 容量` : '休息'}`;
+      colDiv.appendChild(cell);
+    });
+
+    container.appendChild(colDiv);
+  });
 }
 
 function renderStrengthLineChart(exerciseId) {
@@ -703,48 +920,41 @@ function renderStrengthLineChart(exerciseId) {
   state.charts.strength = new Chart(ctx, {
     type: 'line',
     data: {
-      labels: labels.length > 0 ? labels : ['無資料'],
+      labels: labels.length > 0 ? labels : ['無數據'],
       datasets: [{
         label: '估算 1RM (kg)',
         data: dataPoints.length > 0 ? dataPoints : [0],
         borderColor: '#10b981',
-        backgroundColor: 'rgba(16, 185, 129, 0.12)',
-        borderWidth: 2.5,
+        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+        borderWidth: 2,
         fill: true,
         tension: 0.35,
         pointBackgroundColor: '#10b981',
-        pointRadius: 4
+        pointRadius: 3
       }]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false }
-      },
+      plugins: { legend: { display: false } },
       scales: {
-        x: {
-          grid: { color: '#1a2236' },
-          ticks: { color: '#64748b', font: { size: 10 } }
-        },
-        y: {
-          grid: { color: '#1a2236' },
-          ticks: { color: '#64748b', font: { size: 10 } }
-        }
+        x: { grid: { color: '#1a2236' }, ticks: { color: '#64748b', font: { size: 9 } } },
+        y: { grid: { color: '#1a2236' }, ticks: { color: '#64748b', font: { size: 9 } } }
       }
     }
   });
 }
 
 function renderMuscleVolumeBarChart() {
-  const ctx = document.getElementById('muscleVolumeChart');
+  const ctx = document.getElementById('muscleVolumeBarChart');
   if (!ctx || !window.Chart) return;
 
-  const muscleGroups = ['胸部', '背部', '腿部', '肩部', '手臂'];
-  const recoveryMap = calculateMuscleRecovery();
-  const counts = muscleGroups.map(g => {
-    const key = g === '手臂' ? '手臂/核心' : g;
-    return recoveryMap[key] ? recoveryMap[key].recentSets : 0;
+  const groups = ['胸部', '背部', '腿部', '肩部', '手臂'];
+  const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const recentLogs = state.history.filter(h => h.timestamp >= sevenDaysAgo);
+
+  const counts = groups.map(g => {
+    return recentLogs.filter(h => h.category === g).length;
   });
 
   if (state.charts.muscle) {
@@ -754,259 +964,159 @@ function renderMuscleVolumeBarChart() {
   state.charts.muscle = new Chart(ctx, {
     type: 'bar',
     data: {
-      labels: muscleGroups,
+      labels: groups,
       datasets: [{
-        label: '近7天完成組數',
+        label: '有效組數',
         data: counts,
         backgroundColor: ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#06b6d4'],
-        borderRadius: 6
+        borderRadius: 4
       }]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false }
-      },
+      plugins: { legend: { display: false } },
       scales: {
-        x: {
-          grid: { display: false },
-          ticks: { color: '#94a3b8', font: { size: 11, weight: 'bold' } }
-        },
-        y: {
-          grid: { color: '#1a2236' },
-          ticks: { color: '#64748b', font: { size: 10 }, stepSize: 2 }
-        }
+        x: { grid: { display: false }, ticks: { color: '#94a3b8', font: { size: 10, weight: 'bold' } } },
+        y: { grid: { color: '#1a2236' }, ticks: { color: '#64748b', font: { size: 9 }, stepSize: 2 } }
       }
     }
   });
 }
 
-function renderPrGrid(prMap) {
-  const container = document.getElementById('analyticsPrGrid');
+function renderPrHonorGrid(prMap) {
+  const container = document.getElementById('prHonorGrid');
   container.innerHTML = '';
-
   const entries = Object.entries(prMap);
+
   if (entries.length === 0) {
-    container.innerHTML = `<div class="col-span-2 text-center text-xs text-slate-500 py-4">尚無 PR 紀錄，完成組數以建立數據！</div>`;
+    container.innerHTML = `<div class="col-span-2 text-center text-xs text-slate-500 py-3">尚無 PR 紀錄，持續訓練以解鎖！</div>`;
     return;
   }
 
-  entries.forEach(([exId, log]) => {
+  entries.forEach(([_, log]) => {
     const card = document.createElement('div');
     card.className = 'bg-iron-950 border border-iron-800 rounded-xl p-3 space-y-1';
     card.innerHTML = `
       <div class="text-[11px] font-bold text-slate-300 truncate">${log.exerciseName}</div>
-      <div class="flex items-baseline justify-between pt-1">
+      <div class="flex items-baseline justify-between pt-0.5">
         <span class="text-[10px] text-slate-500 font-mono">e1RM</span>
-        <span class="text-base font-mono font-black text-hevy-green">${log.e1rm} <span class="text-[10px] text-slate-400">kg</span></span>
+        <span class="text-base font-mono font-black text-accent-green">${log.e1rm} <span class="text-[9px] text-slate-400">kg</span></span>
       </div>
-      <div class="flex items-baseline justify-between text-[11px] text-slate-400 font-mono">
-        <span>最大負重</span>
-        <span class="text-white font-bold">${log.weight} kg × ${log.reps}</span>
+      <div class="text-[10px] text-slate-400 font-mono flex justify-between">
+        <span>最佳負重</span>
+        <span class="text-white font-bold">${log.weight}kg × ${log.reps}</span>
       </div>
     `;
     container.appendChild(card);
   });
 }
 
-// ======================= 8. UI 渲染：肌群恢復儀表板 (Fitbod Recovery) =======================
+// ======================= 9. 動作選擇庫與僅今日替換 (Modals) =======================
 
-function renderRecoveryView() {
-  const container = document.getElementById('muscleRecoveryCardsContainer');
-  const recoBox = document.getElementById('recommendationText');
-  container.innerHTML = '';
-
-  const recoveryMap = calculateMuscleRecovery();
-
-  // 智慧判斷今日最推薦練什麼
-  const sortedMuscles = Object.entries(recoveryMap).sort((a, b) => b[1].pct - a[1].pct);
-  const bestToTrain = sortedMuscles.filter(([_, rec]) => rec.pct >= 85).map(([name]) => name);
-
-  if (bestToTrain.length > 0) {
-    recoBox.innerHTML = `今日最佳就緒：<strong class="text-hevy-green">${bestToTrain.slice(0, 2).join(' & ')}</strong> 已完全充血恢復，推薦今日安排為主訓部位！`;
-  } else {
-    recoBox.innerHTML = `各大主要肌群均在修復重建中，建議今日進行輕度活動度伸展或有氧主動恢復。`;
-  }
-
-  for (const [groupName, rec] of Object.entries(recoveryMap)) {
-    const card = document.createElement('div');
-    card.className = 'bg-iron-900 border border-iron-800 rounded-xl p-3.5 space-y-2';
-
-    const daysText = rec.daysAgo === null ? '從未訓練' : (rec.daysAgo === 0 ? '今天訓練過' : `${rec.daysAgo} 天前訓練`);
-
-    card.innerHTML = `
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <span class="font-extrabold text-sm text-white">${groupName}</span>
-          <span class="text-[10px] px-2 py-0.5 rounded-full bg-iron-800 font-mono text-slate-400">${daysText}</span>
-        </div>
-        <div class="flex items-center gap-1.5">
-          <span class="text-xs font-mono font-bold ${rec.color}">${rec.statusText}</span>
-          <span class="text-xs font-mono font-black text-white">${rec.pct}%</span>
-        </div>
-      </div>
-
-      <!-- 進度條 -->
-      <div class="w-full bg-iron-950 rounded-full h-2 overflow-hidden">
-        <div class="h-full rounded-full ${rec.bg} transition-all duration-500" style="width: ${rec.pct}%"></div>
-      </div>
-
-      <div class="flex justify-between text-[11px] text-slate-400 font-mono">
-        <span>近 7 天累積組數：${rec.recentSets} Sets</span>
-        <button data-action="quick-add-group" data-group="${groupName}" class="text-hevy-green hover:underline text-[11px] font-bold">
-          ＋ 加入此肌群動作
-        </button>
-      </div>
-    `;
-
-    container.appendChild(card);
-  }
-}
-
-// ======================= 9. 抽屜模態操作 (槓片、替代動作、新增動作) =======================
-
-// 展開槓片速算抽屜
-function openPlateSheet(weight, targetSetRef = null) {
-  state.currentPlateTarget.weight = weight;
-  state.currentPlateTarget.originSetRef = targetSetRef;
-
-  const modal = document.getElementById('plateSheetModal');
-  const input = document.getElementById('sheetWeightInput');
-  input.value = weight;
-  renderPlateSheetGraphic();
+function openExercisePicker(mode = 'workout') {
+  state.pickerTarget.mode = mode;
+  const modal = document.getElementById('exercisePickerModal');
+  renderPickerExerciseList('全部');
   modal.classList.remove('hidden');
 }
 
-function renderPlateSheetGraphic() {
-  const weight = parseFloat(document.getElementById('sheetWeightInput').value) || 0;
-  const barWeight = state.settings.barWeight;
-  const result = calculatePlates(weight, barWeight);
-
-  document.getElementById('sheetTargetWeightLabel').textContent = `目標重量：${weight} kg (空槓 ${barWeight} kg)`;
-  document.getElementById('sheetSideWeightBadge').textContent = `單邊 ${result.sideWeight} kg`;
-
-  const graphic = document.getElementById('sheetBarbellGraphic');
-  const summary = document.getElementById('sheetPlatesTextSummary');
-  const warmupBox = document.getElementById('sheetWarmupStepsContainer');
-
-  graphic.innerHTML = '';
-  summary.innerHTML = '';
-  warmupBox.innerHTML = '';
-
-  if (!result.isValid) {
-    summary.innerHTML = `<span class="text-xs text-rose-400">總重量低於空槓重 (${barWeight}kg)</span>`;
-    return;
-  }
-
-  // 繪製槓心
-  const bar = document.createElement('div');
-  bar.className = 'absolute left-0 right-0 h-3 bg-gradient-to-b from-slate-300 via-slate-100 to-slate-400 rounded-sm z-0 top-1/2 -translate-y-1/2';
-  graphic.appendChild(bar);
-
-  // 擋圈
-  const collar = document.createElement('div');
-  collar.className = 'w-2.5 h-14 bg-gradient-to-r from-amber-600 to-amber-500 rounded-sm z-10 mr-1.5 shrink-0';
-  graphic.appendChild(collar);
-
-  if (result.plates.length === 0) {
-    summary.innerHTML = `<span class="text-xs font-mono text-slate-400">目前為空槓，無需掛片</span>`;
-  } else {
-    result.plates.forEach(p => {
-      for (let i = 0; i < p.count; i++) {
-        const plateEl = document.createElement('div');
-        plateEl.className = `${p.width} ${p.height} ${p.border} rounded-sm z-10 mr-1 flex items-center justify-center font-black text-[9px] shadow shrink-0`;
-        plateEl.style.backgroundColor = p.color;
-        plateEl.style.color = p.textColor;
-        plateEl.textContent = p.label;
-        graphic.appendChild(plateEl);
-      }
-
-      const tag = document.createElement('span');
-      tag.className = 'px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-iron-850 border border-iron-700 text-slate-200';
-      tag.textContent = `${p.weight}k × ${p.count}`;
-      summary.appendChild(tag);
-    });
-
-    // 夾簧
-    const clip = document.createElement('div');
-    clip.className = 'w-2 h-7 bg-slate-300 rounded-sm z-10 ml-0.5 shrink-0';
-    graphic.appendChild(clip);
-  }
-
-  // 渲染科學熱身排程 (空槓, 50%, 70%, 85%)
-  const warmupPresets = [
-    { name: 'Set 1: 空槓活動度', w: barWeight, reps: '10 次' },
-    { name: 'Set 2: 神經啟動', w: Math.max(barWeight, Math.round((barWeight + (weight - barWeight) * 0.5) / 2.5) * 2.5), reps: '5 次' },
-    { name: 'Set 3: 力量衝動', w: Math.max(barWeight, Math.round((barWeight + (weight - barWeight) * 0.7) / 2.5) * 2.5), reps: '3 次' },
-    { name: 'Set 4: 重量適應', w: Math.max(barWeight, Math.round((barWeight + (weight - barWeight) * 0.85) / 2.5) * 2.5), reps: '1~2 次' }
-  ];
-
-  warmupPresets.forEach(step => {
-    const pCalc = calculatePlates(step.w, barWeight);
-    const pText = pCalc.plates.length > 0 ? pCalc.plates.map(p => `${p.weight}k×${p.count}`).join('+') : '空槓';
-
-    const card = document.createElement('div');
-    card.className = 'p-2 rounded-xl bg-iron-950 border border-iron-800 hover:border-hevy-green flex items-center justify-between text-xs cursor-pointer tap-active';
-    card.innerHTML = `
-      <div>
-        <span class="font-bold text-slate-200">${step.name}</span>
-        <span class="text-[10px] text-slate-400 block font-mono">單邊掛：<strong class="text-hevy-amber">${pText}</strong></span>
-      </div>
-      <div class="text-right font-mono">
-        <span class="font-black text-sm text-white">${step.w} kg</span>
-        <span class="text-[10px] text-hevy-green block">${step.reps}</span>
-      </div>
-    `;
-
-    // 點擊帶入
-    card.addEventListener('click', () => {
-      document.getElementById('sheetWeightInput').value = step.w;
-      renderPlateSheetGraphic();
-      feedback.vibrate(20);
-    });
-
-    warmupBox.appendChild(card);
-  });
-}
-
-// 展開替換動作抽屜
-function openSwapModal(exerciseId, exIndex) {
-  state.currentSwapExerciseId = exerciseId;
-  const currentEx = state.exercises.find(e => e.id === exerciseId);
-  const modal = document.getElementById('swapExerciseModal');
-  const label = document.getElementById('swapOriginNameLabel');
-  const list = document.getElementById('swapAlternativesList');
-
-  label.textContent = `原動作：${currentEx ? currentEx.name : ''} (${currentEx ? currentEx.equipment : ''})`;
+function renderPickerExerciseList(category = '全部') {
+  const list = document.getElementById('pickerExerciseItemsList');
   list.innerHTML = '';
 
-  // 找出同肌群或替代陣列裡的動作
-  const alts = state.exercises.filter(e => {
-    if (e.id === exerciseId) return false;
-    return (currentEx.alternatives && currentEx.alternatives.includes(e.id)) || e.category === currentEx.category;
+  const filtered = category === '全部'
+    ? state.exercises
+    : state.exercises.filter(e => e.category === category);
+
+  filtered.forEach(ex => {
+    const card = document.createElement('div');
+    card.className = 'p-2.5 rounded-xl bg-iron-950 border border-iron-800 hover:border-accent-green flex items-center justify-between text-xs cursor-pointer tap-active transition';
+    card.innerHTML = `
+      <div>
+        <strong class="text-white text-xs block">${ex.name}</strong>
+        <span class="text-[10px] text-slate-400 font-mono">${ex.category} ${ex.isCompound ? '• 複合動作' : ''}</span>
+      </div>
+      <span class="text-accent-green font-bold text-xs flex items-center gap-1">
+        <i data-lucide="plus" class="w-3.5 h-3.5"></i> 加入
+      </span>
+    `;
+
+    card.addEventListener('click', () => {
+      if (state.pickerTarget.mode === 'workout') {
+        const ghost = getExerciseGhostData(ex.id);
+        const defaultW = ghost ? ghost.weight : 40;
+        const defaultR = ghost ? ghost.reps : 8;
+
+        state.activeWorkout.exercises.push({
+          exerciseId: ex.id,
+          isDumbbellEachSide: false,
+          pinNote: ex.pinNote || '',
+          sets: [
+            { id: 's-' + Date.now() + '-1', setType: 'working', weight: defaultW, reps: defaultR, rpe: 8, isCompleted: false },
+            { id: 's-' + Date.now() + '-2', setType: 'working', weight: defaultW, reps: defaultR, rpe: 8, isCompleted: false },
+            { id: 's-' + Date.now() + '-3', setType: 'working', weight: defaultW, reps: defaultR, rpe: 8, isCompleted: false }
+          ]
+        });
+        saveState();
+        renderWorkoutSheet();
+        alertToast(`已將「${ex.name}」加入今日課表`);
+      } else if (state.pickerTarget.mode === 'routine') {
+        state.editingRoutine.exercises.push({
+          exerciseId: ex.id,
+          targetSets: 3,
+          targetReps: 8
+        });
+        renderTemplateExercisesEditor();
+      }
+
+      document.getElementById('exercisePickerModal').classList.add('hidden');
+      sound.vibrate(25);
+    });
+
+    list.appendChild(card);
   });
+
+  if (window.lucide) lucide.createIcons();
+}
+
+// 僅今日臨時替換動作 (Swap for Today)
+function openSwapTodayModal(exerciseId, exIndex) {
+  state.swapTarget.exerciseIndex = exIndex;
+  state.swapTarget.originalExerciseId = exerciseId;
+
+  const modal = document.getElementById('swapTodayModal');
+  const label = document.getElementById('swapTodayPromptLabel');
+  const list = document.getElementById('swapTodayAltsList');
+
+  const curEx = state.exercises.find(e => e.id === exerciseId);
+  label.textContent = `原動作：${curEx ? curEx.name : ''}（僅替換本次訓練）`;
+  list.innerHTML = '';
+
+  // 推薦同肌群之動作
+  const alts = state.exercises.filter(e => e.category === (curEx ? curEx.category : '胸部') && e.id !== exerciseId);
 
   alts.forEach(alt => {
     const card = document.createElement('div');
-    card.className = 'p-3 rounded-xl bg-iron-950 border border-iron-800 hover:border-hevy-blue flex items-center justify-between text-xs cursor-pointer tap-active transition';
+    card.className = 'p-3 rounded-xl bg-iron-950 border border-iron-800 hover:border-accent-blue flex items-center justify-between text-xs cursor-pointer tap-active transition';
     card.innerHTML = `
-      <div class="space-y-0.5">
+      <div>
         <strong class="text-white text-sm block">${alt.name}</strong>
-        <span class="text-[10px] px-1.5 py-0.2 rounded bg-iron-800 text-slate-300">${alt.equipment} • ${alt.category}</span>
+        <span class="text-[10px] text-slate-400 font-mono">${alt.category}</span>
       </div>
-      <button class="px-3 py-1.5 rounded-lg bg-hevy-blue/20 text-hevy-blue font-bold text-xs">
+      <button class="px-3 py-1.5 rounded-lg bg-accent-blue/20 text-accent-blue font-bold text-xs">
         確認替換
       </button>
     `;
 
     card.addEventListener('click', () => {
       state.activeWorkout.exercises[exIndex].exerciseId = alt.id;
-      saveLocalData();
+      state.activeWorkout.exercises[exIndex].pinNote = alt.pinNote || '';
+      saveState();
       renderWorkoutSheet();
       modal.classList.add('hidden');
-      alertToast(`已將動作替換為「${alt.name}」`);
-      feedback.vibrate(30);
+      alertToast(`已臨時替換為「${alt.name}」`);
+      sound.vibrate(30);
     });
 
     list.appendChild(card);
@@ -1015,131 +1125,79 @@ function openSwapModal(exerciseId, exIndex) {
   modal.classList.remove('hidden');
 }
 
-// 展開新增動作庫抽屜
-function openAddExerciseModal(filterCat = '全部') {
-  const modal = document.getElementById('addExerciseModal');
-  const list = document.getElementById('exerciseLibraryList');
-  list.innerHTML = '';
+// ======================= 10. 獨立手動組間休息計時器 =======================
 
-  const filtered = filterCat === '全部' 
-    ? state.exercises 
-    : state.exercises.filter(e => e.category === filterCat);
-
-  filtered.forEach(ex => {
-    const card = document.createElement('div');
-    card.className = 'p-2.5 rounded-xl bg-iron-950 border border-iron-800 hover:border-hevy-green flex items-center justify-between text-xs cursor-pointer tap-active transition';
-    card.innerHTML = `
-      <div>
-        <strong class="text-white text-xs block">${ex.name}</strong>
-        <span class="text-[10px] text-slate-400 font-mono">${ex.category} • ${ex.equipment || '自訂'}</span>
-      </div>
-      <span class="text-hevy-green font-bold text-xs flex items-center gap-1">
-        <i data-lucide="plus" class="w-3.5 h-3.5"></i> 加入
-      </span>
-    `;
-
-    card.addEventListener('click', () => {
-      // 取得上次做這個動作的預設重量
-      const stats = getExerciseHistoryStats(ex.id);
-      const defaultWeight = stats.lastSet ? stats.lastSet.weight : 60;
-      const defaultReps = stats.lastSet ? stats.lastSet.reps : 8;
-
-      state.activeWorkout.exercises.push({
-        exerciseId: ex.id,
-        sets: [
-          { id: 's-' + Date.now(), setType: 'working', weight: defaultWeight, reps: defaultReps, rpe: 8, isCompleted: false },
-          { id: 's-' + (Date.now() + 1), setType: 'working', weight: defaultWeight, reps: defaultReps, rpe: 8, isCompleted: false },
-          { id: 's-' + (Date.now() + 2), setType: 'working', weight: defaultWeight, reps: defaultReps, rpe: 8, isCompleted: false }
-        ]
-      });
-
-      saveLocalData();
-      renderWorkoutSheet();
-      modal.classList.add('hidden');
-      alertToast(`已加入「${ex.name}」到今日課表`);
-      feedback.vibrate(30);
-    });
-
-    list.appendChild(card);
-  });
-
-  if (window.lucide) lucide.createIcons();
-  modal.classList.remove('hidden');
-}
-
-// ======================= 10. 組間計時器邏輯 =======================
-function startTimer(seconds) {
-  if (state.timer.intervalId) {
+function toggleManualTimer() {
+  if (state.timer.isRunning) {
+    // 暫停
     clearInterval(state.timer.intervalId);
-  }
-  state.timer.remainingSeconds = seconds;
-  state.timer.isRunning = true;
-  updateTimerUI();
-
-  state.timer.intervalId = setInterval(() => {
-    state.timer.remainingSeconds--;
-    updateTimerUI();
-
+    state.timer.isRunning = false;
+    updateManualTimerDisplay();
+  } else {
+    // 啟動倒數
     if (state.timer.remainingSeconds <= 0) {
-      clearInterval(state.timer.intervalId);
-      state.timer.isRunning = false;
-      feedback.playTimerDone();
-      alertToast('⏰ 組間休息時間到！準備下一組！');
+      state.timer.remainingSeconds = state.timer.totalSeconds;
     }
-  }, 1000);
+    state.timer.isRunning = true;
+    updateManualTimerDisplay();
+
+    state.timer.intervalId = setInterval(() => {
+      state.timer.remainingSeconds--;
+      updateManualTimerDisplay();
+
+      if (state.timer.remainingSeconds <= 0) {
+        clearInterval(state.timer.intervalId);
+        state.timer.isRunning = false;
+        sound.timerDone();
+        alertToast('⏰ 組間休息時間到！準備下一組！');
+      }
+    }, 1000);
+  }
 }
 
-function stopTimer() {
+function resetManualTimer() {
   if (state.timer.intervalId) {
     clearInterval(state.timer.intervalId);
-    state.timer.intervalId = null;
   }
   state.timer.isRunning = false;
-  state.timer.remainingSeconds = 0;
-  updateTimerUI();
+  state.timer.remainingSeconds = state.timer.totalSeconds;
+  updateManualTimerDisplay();
 }
 
-function updateTimerUI() {
-  const display = document.getElementById('timerDisplay');
-  const widget = document.getElementById('restTimerWidget');
+function updateManualTimerDisplay() {
+  const display = document.getElementById('manualTimerDisplay');
   const total = state.timer.remainingSeconds;
-
   const mins = Math.floor(total / 60);
   const secs = total % 60;
   display.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-
-  if (state.timer.isRunning) {
-    widget.classList.add('border-hevy-green', 'bg-hevy-green/10');
-  } else {
-    widget.classList.remove('border-hevy-green', 'bg-hevy-green/10');
-  }
 }
 
-// 簡易 Toast 提示
+// Toast 提示
 function alertToast(msg) {
   const toast = document.createElement('div');
-  toast.className = 'fixed top-14 left-1/2 -translate-x-1/2 z-50 bg-iron-900 border border-hevy-green text-white font-bold px-4 py-2 rounded-xl shadow-2xl text-xs flex items-center gap-2 animate-bounce';
-  toast.innerHTML = `<i data-lucide="bell" class="w-4 h-4 text-hevy-green"></i><span>${msg}</span>`;
+  toast.className = 'fixed top-14 left-1/2 -translate-x-1/2 z-50 bg-iron-900 border border-accent-green text-white font-bold px-4 py-2 rounded-xl shadow-2xl text-xs flex items-center gap-2 animate-bounce';
+  toast.innerHTML = `<i data-lucide="bell" class="w-4 h-4 text-accent-green"></i><span>${msg}</span>`;
   document.body.appendChild(toast);
   if (window.lucide) lucide.createIcons();
-  setTimeout(() => toast.remove(), 2800);
+  setTimeout(() => toast.remove(), 2600);
 }
 
-// ======================= 11. 事件監聽綁定 =======================
+// ======================= 11. 全域事件監聽綁定 =======================
+
 function setupEventListeners() {
-  // 底部導航切換
+  // 底部 3 大分頁切換
   document.querySelectorAll('.nav-tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const targetNav = btn.getAttribute('data-nav');
       switchNavTab(targetNav);
-      feedback.vibrate(15);
+      sound.vibrate(15);
     });
   });
 
-  // 工作表內部事件委託 (打勾、輸入修改、切換組別類型)
-  const container = document.getElementById('workoutSheetsContainer');
+  // 現場訓練工作表內部事件委託
+  const workoutContainer = document.getElementById('workoutCardsContainer');
 
-  container.addEventListener('input', (e) => {
+  workoutContainer.addEventListener('input', (e) => {
     const input = e.target;
     const field = input.getAttribute('data-field');
     const exIdx = parseInt(input.getAttribute('data-ex-index'));
@@ -1147,36 +1205,51 @@ function setupEventListeners() {
 
     if (field && !isNaN(exIdx) && !isNaN(setIdx)) {
       state.activeWorkout.exercises[exIdx].sets[setIdx][field] = parseFloat(input.value) || 0;
-      saveLocalData();
+      saveState();
     }
   });
 
-  container.addEventListener('click', (e) => {
+  workoutContainer.addEventListener('change', (e) => {
+    // 常駐筆記輸入完成失去焦點時儲存
+    const input = e.target;
+    if (input.getAttribute('data-action') === 'edit-pin-note') {
+      const exIdx = parseInt(input.getAttribute('data-ex-index'));
+      const exId = input.getAttribute('data-ex-id');
+      const val = input.value.trim();
+
+      // 同步更新至目前 activeWorkout 與全域動作庫
+      state.activeWorkout.exercises[exIdx].pinNote = val;
+      const ex = state.exercises.find(item => item.id === exId);
+      if (ex) ex.pinNote = val;
+      saveState();
+      alertToast('動作備忘錄已儲存');
+    }
+  });
+
+  workoutContainer.addEventListener('click', (e) => {
     const target = e.target.closest('[data-action]');
     if (!target) return;
     const action = target.getAttribute('data-action');
     const exIdx = parseInt(target.getAttribute('data-ex-index'));
     const setIdx = parseInt(target.getAttribute('data-set-index'));
 
-    // 1. 打勾完成一組 (Hevy 招牌 Checkmark)
-    if (action === 'toggle-complete') {
+    // 1. 純打勾完成一組 (不自動啟動計時器)
+    if (action === 'toggle-set-complete') {
       const set = state.activeWorkout.exercises[exIdx].sets[setIdx];
       set.isCompleted = !set.isCompleted;
 
       if (set.isCompleted) {
-        feedback.playCheckSound();
-
-        // 紀錄進歷史
+        sound.checkSound();
         const exItem = state.activeWorkout.exercises[exIdx];
-        const exObj = state.exercises.find(e => e.id === exItem.exerciseId);
+        const exObj = state.exercises.find(item => item.id === exItem.exerciseId);
         const e1rm = calculateE1RM(set.weight, set.reps, set.rpe || 8);
 
-        // 檢查是否創下 PR
-        const stats = getExerciseHistoryStats(exItem.exerciseId);
-        const isPR = stats.bestE1rm > 0 && e1rm > stats.bestE1rm;
+        // 檢查是否突破歷史 PR
+        const ghost = getExerciseGhostData(exItem.exerciseId);
+        const isPR = ghost && ghost.e1rm && e1rm > ghost.e1rm;
 
         state.history.unshift({
-          id: 'h-' + Date.now(),
+          id: 'hist-' + Date.now(),
           date: new Date().toISOString().split('T')[0],
           timestamp: Date.now(),
           exerciseId: exItem.exerciseId,
@@ -1186,197 +1259,266 @@ function setupEventListeners() {
           reps: set.reps,
           rpe: set.rpe || 8,
           setType: set.setType || 'working',
-          e1rm
+          e1rm,
+          isDumbbellEachSide: exItem.isDumbbellEachSide
         });
 
         if (isPR) {
-          setTimeout(() => feedback.playPRCelebration(), 100);
-          alertToast(`🔥 突破個人最佳紀錄！PR: ${e1rm} kg！`);
+          setTimeout(() => sound.prSound(), 100);
+          alertToast(`🔥 突破個人紀錄！e1RM: ${e1rm} kg！`);
         }
-
-        // 自動啟動組間休息計時
-        startTimer(state.settings.restDuration || 90);
       }
 
-      saveLocalData();
+      saveState();
       renderWorkoutSheet();
     }
 
-    // 2. 切換組別類型 (工作組 ➔ 熱身組 ➔ 遞減組 ➔ 力竭組)
+    // 2. 切換組別屬性 (1/2/3/W/D/F)
     else if (action === 'toggle-set-type') {
       const set = state.activeWorkout.exercises[exIdx].sets[setIdx];
       const types = ['working', 'warmup', 'drop', 'failure'];
-      let nextIdx = types.indexOf(set.setType) + 1;
-      if (nextIdx >= types.length) nextIdx = 0;
-      set.setType = types[nextIdx];
-      saveLocalData();
+      let next = (types.indexOf(set.setType) + 1) % types.length;
+      set.setType = types[next];
+      saveState();
       renderWorkoutSheet();
-      feedback.vibrate(20);
+      sound.vibrate(15);
     }
 
-    // 3. 新增一組
+    // 3. 現場快填累加按鈕 (+1.25 / +2.5 / +5)
+    else if (action === 'quick-add-weight') {
+      const delta = parseFloat(target.getAttribute('data-delta'));
+      const set = state.activeWorkout.exercises[exIdx].sets[setIdx];
+      set.weight = Math.max(0, (set.weight || 0) + delta);
+      saveState();
+      renderWorkoutSheet();
+      sound.vibrate(20);
+    }
+
+    // 4. 複製上一組 (Copy Last)
+    else if (action === 'copy-last-set') {
+      const prevSet = state.activeWorkout.exercises[exIdx].sets[setIdx - 1];
+      const curSet = state.activeWorkout.exercises[exIdx].sets[setIdx];
+      if (prevSet && curSet) {
+        curSet.weight = prevSet.weight;
+        curSet.reps = prevSet.reps;
+        curSet.rpe = prevSet.rpe;
+        saveState();
+        renderWorkoutSheet();
+        sound.vibrate(25);
+      }
+    }
+
+    // 5. 單手啞鈴(×2) / 總重切換
+    else if (action === 'toggle-dumbbell') {
+      const exItem = state.activeWorkout.exercises[exIdx];
+      exItem.isDumbbellEachSide = !exItem.isDumbbellEachSide;
+      saveState();
+      renderWorkoutSheet();
+      sound.vibrate(20);
+    }
+
+    // 6. 產生熱身組
+    else if (action === 'generate-warmup') {
+      generateWarmupSets(exIdx);
+    }
+
+    // 7. 僅今日替換動作
+    else if (action === 'swap-today') {
+      const exId = target.getAttribute('data-ex-id');
+      openSwapTodayModal(exId, exIdx);
+    }
+
+    // 8. 新增一組
     else if (action === 'add-set') {
-      const currentSets = state.activeWorkout.exercises[exIdx].sets;
-      const lastSet = currentSets[currentSets.length - 1] || { weight: 60, reps: 8, rpe: 8 };
-      currentSets.push({
+      const sets = state.activeWorkout.exercises[exIdx].sets;
+      const last = sets[sets.length - 1] || { weight: 50, reps: 8, rpe: 8 };
+      sets.push({
         id: 's-' + Date.now(),
         setType: 'working',
-        weight: lastSet.weight,
-        reps: lastSet.reps,
-        rpe: lastSet.rpe,
+        weight: last.weight,
+        reps: last.reps,
+        rpe: last.rpe,
         isCompleted: false
       });
-      saveLocalData();
+      saveState();
       renderWorkoutSheet();
-      feedback.vibrate(20);
+      sound.vibrate(20);
     }
 
-    // 4. 點擊槓片按鈕
-    else if (action === 'plate') {
-      const sets = state.activeWorkout.exercises[exIdx].sets;
-      const targetWeight = sets[0] ? sets[0].weight : 60;
-      openPlateSheet(targetWeight);
-      feedback.vibrate(25);
-    }
-
-    // 5. 點擊替換動作
-    else if (action === 'swap') {
-      const exId = target.getAttribute('data-ex-id');
-      openSwapModal(exId, exIdx);
-      feedback.vibrate(25);
-    }
-
-    // 6. 移除動作
-    else if (action === 'remove-ex') {
-      if (confirm('確定要從今日課表中移除此動作嗎？')) {
+    // 9. 移除動作
+    else if (action === 'remove-workout-ex') {
+      if (confirm('確定從今日訓練移除此動作？')) {
         state.activeWorkout.exercises.splice(exIdx, 1);
-        saveLocalData();
+        saveState();
         renderWorkoutSheet();
       }
     }
   });
 
+  // 部位活動度展開/折疊
+  document.getElementById('toggleMobilityBtn').addEventListener('click', () => {
+    const list = document.getElementById('mobilityItemsList');
+    const isHidden = list.classList.toggle('hidden');
+    document.getElementById('toggleMobilityText').textContent = isHidden ? '展開' : '收起';
+    document.getElementById('toggleMobilityIcon').setAttribute('data-lucide', isHidden ? 'chevron-down' : 'chevron-up');
+    if (window.lucide) lucide.createIcons();
+  });
+
+  // 獨立手動計時器控制
+  document.getElementById('manualTimerToggleBtn').addEventListener('click', toggleManualTimer);
+  document.getElementById('timerPlus30Btn').addEventListener('click', () => {
+    state.timer.remainingSeconds += 30;
+    updateManualTimerDisplay();
+    sound.vibrate(20);
+  });
+  document.getElementById('timerResetBtn').addEventListener('click', () => {
+    resetManualTimer();
+    sound.vibrate(25);
+  });
+
+  // 切換課表快捷 (進入課表分頁)
+  document.getElementById('switchRoutineQuickBtn').addEventListener('click', () => {
+    switchNavTab('tab-routines');
+  });
+
+  // 臨時加入動作至今日訓練
+  document.getElementById('openAddExToWorkoutBtn').addEventListener('click', () => {
+    openExercisePicker('workout');
+  });
+
   // 完成今日訓練大按鈕
   document.getElementById('finishWorkoutBtn').addEventListener('click', () => {
-    alertToast('🎉 今日訓練完成！數據已同步至進步曲線！');
-    feedback.playPRCelebration();
-    saveLocalData();
+    alertToast('🎉 今日訓練完成！組數與數據已成功歸檔！');
+    sound.prSound();
+    saveState();
     switchNavTab('tab-analytics');
   });
 
-  // 新增動作按鈕
-  document.getElementById('openAddExerciseSheetBtn').addEventListener('click', () => {
-    openAddExerciseModal('全部');
+  // 課表庫管理按鈕
+  document.getElementById('createNewRoutineBtn').addEventListener('click', () => {
+    openRoutineEditor(null);
   });
 
-  // 關閉各抽屜
-  document.getElementById('closePlateSheetBtn').addEventListener('click', () => {
-    document.getElementById('plateSheetModal').classList.add('hidden');
+  document.getElementById('closeRoutineEditorBtn').addEventListener('click', () => {
+    document.getElementById('routineEditorModal').classList.add('hidden');
   });
-  document.getElementById('closeSwapModalBtn').addEventListener('click', () => {
-    document.getElementById('swapExerciseModal').classList.add('hidden');
-  });
-  document.getElementById('closeAddModalBtn').addEventListener('click', () => {
-    document.getElementById('addExerciseModal').classList.add('hidden');
+  document.getElementById('cancelRoutineEditBtn').addEventListener('click', () => {
+    document.getElementById('routineEditorModal').classList.add('hidden');
   });
 
-  // 槓片抽屜輸入監聽
-  document.getElementById('sheetWeightInput').addEventListener('input', renderPlateSheetGraphic);
-  document.querySelectorAll('.sheet-weight-btn').forEach(btn => {
+  // 儲存課表
+  document.getElementById('saveRoutineTemplateBtn').addEventListener('click', () => {
+    const name = document.getElementById('routineNameInput').value.trim();
+    if (!name) return alert('請填寫課表名稱');
+
+    state.editingRoutine.name = name;
+    state.editingRoutine.category = document.getElementById('routineCategorySelect').value;
+
+    const existIdx = state.routines.findIndex(r => r.id === state.editingRoutine.id);
+    if (existIdx >= 0) {
+      state.routines[existIdx] = state.editingRoutine;
+    } else {
+      state.routines.push(state.editingRoutine);
+    }
+
+    saveState();
+    renderRoutinesView();
+    document.getElementById('routineEditorModal').classList.add('hidden');
+    alertToast(`課表「${name}」已儲存`);
+  });
+
+  // 課表列表事件委託 (開始此課表、編輯、刪除)
+  document.getElementById('routinesListContainer').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    const action = btn.getAttribute('data-action');
+    const rId = btn.getAttribute('data-routine-id');
+
+    if (action === 'start-routine') {
+      loadRoutineIntoActiveWorkout(rId, true);
+      switchNavTab('tab-workout');
+      sound.vibrate(30);
+    } else if (action === 'edit-routine') {
+      openRoutineEditor(rId);
+    } else if (action === 'delete-routine') {
+      if (confirm('確定刪除此課表範本？')) {
+        state.routines = state.routines.filter(r => r.id !== rId);
+        saveState();
+        renderRoutinesView();
+      }
+    }
+  });
+
+  // 課表編輯器內加入動作
+  document.getElementById('addExerciseToTemplateBtn').addEventListener('click', () => {
+    openExercisePicker('routine');
+  });
+
+  // 課表編輯器動作排序與刪除
+  document.getElementById('templateExercisesList').addEventListener('input', (e) => {
+    const idx = parseInt(e.target.getAttribute('data-idx'));
+    const field = e.target.getAttribute('data-field');
+    if (!isNaN(idx) && field) {
+      state.editingRoutine.exercises[idx][field] = parseInt(e.target.value) || 1;
+    }
+  });
+
+  document.getElementById('templateExercisesList').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    const action = btn.getAttribute('data-action');
+    const idx = parseInt(btn.getAttribute('data-idx'));
+
+    if (action === 'move-up' && idx > 0) {
+      const temp = state.editingRoutine.exercises[idx];
+      state.editingRoutine.exercises[idx] = state.editingRoutine.exercises[idx - 1];
+      state.editingRoutine.exercises[idx - 1] = temp;
+      renderTemplateExercisesEditor();
+    } else if (action === 'move-down' && idx < state.editingRoutine.exercises.length - 1) {
+      const temp = state.editingRoutine.exercises[idx];
+      state.editingRoutine.exercises[idx] = state.editingRoutine.exercises[idx + 1];
+      state.editingRoutine.exercises[idx + 1] = temp;
+      renderTemplateExercisesEditor();
+    } else if (action === 'delete-template-ex') {
+      state.editingRoutine.exercises.splice(idx, 1);
+      renderTemplateExercisesEditor();
+    }
+  });
+
+  // 關閉各抽屜 Modal
+  document.getElementById('closePickerModalBtn').addEventListener('click', () => {
+    document.getElementById('exercisePickerModal').classList.add('hidden');
+  });
+  document.getElementById('closeSwapTodayBtn').addEventListener('click', () => {
+    document.getElementById('swapTodayModal').classList.add('hidden');
+  });
+
+  // 動作庫篩選按鈕
+  document.querySelectorAll('.picker-filter-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      const delta = parseFloat(btn.getAttribute('data-sheet-delta'));
-      const input = document.getElementById('sheetWeightInput');
-      input.value = Math.max(0, (parseFloat(input.value) || 0) + delta);
-      renderPlateSheetGraphic();
-      feedback.vibrate(20);
-    });
-  });
-
-  // 新增動作肌群分類按鈕列
-  document.querySelectorAll('.cat-filter-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.cat-filter-btn').forEach(b => {
-        b.className = 'cat-filter-btn px-3 py-1 rounded-full text-xs font-bold bg-iron-800 text-slate-300';
+      document.querySelectorAll('.picker-filter-btn').forEach(b => {
+        b.className = 'picker-filter-btn px-3 py-1 rounded-full text-xs font-bold bg-iron-800 text-slate-300';
       });
-      btn.className = 'cat-filter-btn px-3 py-1 rounded-full text-xs font-bold bg-hevy-green text-iron-950';
-      const cat = btn.getAttribute('data-cat');
-      openAddExerciseModal(cat);
-      feedback.vibrate(15);
+      btn.className = 'picker-filter-btn px-3 py-1 rounded-full text-xs font-bold bg-accent-green text-iron-950';
+      renderPickerExerciseList(btn.getAttribute('data-cat'));
     });
   });
 
-  // 建立自訂動作
-  document.getElementById('createCustomExBtn').addEventListener('click', () => {
-    const nameInput = document.getElementById('customExNameInput');
-    const catSelect = document.getElementById('customExCatSelect');
-    const name = nameInput.value.trim();
-    if (!name) return alert('請輸入動作名稱');
-
-    const newEx = {
-      id: 'ex-' + Date.now(),
-      name,
-      category: catSelect.value,
-      equipment: '自訂',
-      alternatives: []
-    };
-
-    state.exercises.push(newEx);
-    saveLocalData();
-    nameInput.value = '';
-    openAddExerciseModal(catSelect.value);
-    alertToast(`已新增自訂動作「${name}」`);
-  });
-
-  // 數據分頁動作篩選
-  document.getElementById('analyticsExerciseFilter').addEventListener('change', (e) => {
+  // 數據分頁動作切換
+  document.getElementById('analyticsExerciseSelect').addEventListener('change', (e) => {
     renderStrengthLineChart(e.target.value);
   });
 
-  // 肌群恢復分頁快速加入動作
-  document.getElementById('tab-recovery').addEventListener('click', (e) => {
-    const btn = e.target.closest('[data-action="quick-add-group"]');
-    if (!btn) return;
-    const group = btn.getAttribute('data-group');
-    switchNavTab('tab-workout');
-    openAddExerciseModal(group);
-  });
-
-  // 常駐計時器微調
-  document.getElementById('timerQuickPlusBtn').addEventListener('click', () => {
-    state.timer.remainingSeconds += 30;
-    updateTimerUI();
-    feedback.vibrate(20);
-  });
-  document.getElementById('timerResetBtn').addEventListener('click', () => {
-    stopTimer();
-    feedback.vibrate(25);
-  });
-  document.getElementById('timerToggleBtn').addEventListener('click', () => {
-    startTimer(state.settings.restDuration || 90);
-  });
-
-  // 設定與備份
-  document.getElementById('settingsBarWeight').value = state.settings.barWeight;
-  document.getElementById('settingsBarWeight').addEventListener('change', (e) => {
-    state.settings.barWeight = parseFloat(e.target.value);
-    saveLocalData();
-  });
-
-  document.getElementById('settingsRestDuration').value = state.settings.restDuration;
-  document.getElementById('settingsRestDuration').addEventListener('change', (e) => {
-    state.settings.restDuration = parseInt(e.target.value);
-    saveLocalData();
-  });
-
   // 匯出 JSON 備份
-  document.getElementById('exportBackupBtn').addEventListener('click', () => {
+  document.getElementById('exportJsonBackupBtn').addEventListener('click', () => {
     const backup = {
-      version: '2.0',
+      version: '4.0',
       exportDate: new Date().toISOString(),
       exercises: state.exercises,
+      routines: state.routines,
+      weeklySplit: state.weeklySplit,
       history: state.history,
-      activeWorkout: state.activeWorkout,
-      settings: state.settings
+      activeWorkout: state.activeWorkout
     };
     const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -1385,11 +1527,11 @@ function setupEventListeners() {
     a.download = `ironlog-backup-${new Date().toISOString().split('T')[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    alertToast('備份已下載至手機本地！');
+    alertToast('備份已下載至手機本地');
   });
 
   // 匯入 JSON 還原
-  document.getElementById('importBackupInput').addEventListener('change', (e) => {
+  document.getElementById('importJsonBackupInput').addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
@@ -1399,32 +1541,20 @@ function setupEventListeners() {
         if (imported && Array.isArray(imported.history)) {
           state.history = imported.history;
           if (imported.exercises) state.exercises = imported.exercises;
+          if (imported.routines) state.routines = imported.routines;
+          if (imported.weeklySplit) state.weeklySplit = imported.weeklySplit;
           if (imported.activeWorkout) state.activeWorkout = imported.activeWorkout;
-          if (imported.settings) state.settings = imported.settings;
-          saveLocalData();
+          saveState();
           renderWorkoutSheet();
+          renderRoutinesView();
           renderAnalyticsView();
-          renderRecoveryView();
           alertToast('🎉 備份已成功還原！');
         }
       } catch (err) {
-        alert('解析檔案失敗，請檢查是否為正確的 JSON 檔案');
+        alert('解析檔案失敗，請檢查檔案格式');
       }
     };
     reader.readAsText(file);
-  });
-
-  // 重置演示資料
-  document.getElementById('resetDemoDataBtn').addEventListener('click', () => {
-    if (confirm('確定重置所有日誌為初始演示資料？')) {
-      state.history = [...INITIAL_DEMO_HISTORY];
-      state.exercises = [...DEFAULT_EXERCISES];
-      saveLocalData();
-      renderWorkoutSheet();
-      renderAnalyticsView();
-      renderRecoveryView();
-      alertToast('已重置為初始資料');
-    }
   });
 }
 
@@ -1438,18 +1568,18 @@ function switchNavTab(targetNav) {
   document.querySelectorAll('.nav-tab-btn').forEach(btn => {
     const isCurrent = btn.getAttribute('data-nav') === targetNav;
     if (isCurrent) {
-      btn.className = 'nav-tab-btn active flex flex-col items-center justify-center py-1.5 rounded-xl text-hevy-green transition';
+      btn.className = 'nav-tab-btn active flex flex-col items-center justify-center py-1.5 rounded-xl text-accent-green transition tap-active';
     } else {
-      btn.className = 'nav-tab-btn flex flex-col items-center justify-center py-1.5 rounded-xl text-slate-400 hover:text-slate-200 transition';
+      btn.className = 'nav-tab-btn flex flex-col items-center justify-center py-1.5 rounded-xl text-slate-400 hover:text-slate-200 transition tap-active';
     }
   });
 
   if (targetNav === 'tab-workout') {
     renderWorkoutSheet();
+  } else if (targetNav === 'tab-routines') {
+    renderRoutinesView();
   } else if (targetNav === 'tab-analytics') {
     renderAnalyticsView();
-  } else if (targetNav === 'tab-recovery') {
-    renderRecoveryView();
   }
 
   if (window.lucide) lucide.createIcons();
@@ -1457,10 +1587,10 @@ function switchNavTab(targetNav) {
 
 // ======================= 12. 應用程式入口 =======================
 window.addEventListener('DOMContentLoaded', () => {
-  loadLocalData();
+  loadState();
   setupEventListeners();
   renderWorkoutSheet();
-  updateTimerUI();
+  updateManualTimerDisplay();
 
   if (window.lucide) lucide.createIcons();
 });
