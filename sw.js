@@ -1,8 +1,8 @@
-const CACHE_NAME = 'ironlog-v4.2';
+const CACHE_NAME = 'ironlog-v5.0';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
-  './app.js?v=4.2',
+  './app.js?v=5.0',
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png',
@@ -12,14 +12,14 @@ const ASSETS_TO_CACHE = [
   'https://cdn.jsdelivr.net/npm/chart.js'
 ];
 
-// Install: 立即跳過等待
+// Install: 立即接管
 self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[IronLog SW v4] Pre-caching core assets');
+      console.log('[IronLog SW v5.0] Pre-caching core assets');
       return cache.addAll(ASSETS_TO_CACHE).catch((err) => {
-        console.warn('[IronLog SW v4] Non-critical cache failed:', err);
+        console.warn('[IronLog SW v5.0] Cache warning:', err);
       });
     })
   );
@@ -32,7 +32,7 @@ self.addEventListener('activate', (event) => {
       return Promise.all(
         keys.map((key) => {
           if (key !== CACHE_NAME) {
-            console.log('[IronLog SW v4] Removing old cache:', key);
+            console.log('[IronLog SW v5.0] Removing old cache:', key);
             return caches.delete(key);
           }
         })
