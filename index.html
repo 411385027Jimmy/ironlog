@@ -374,9 +374,25 @@
         </div>
       </div>
 
+      <!-- 歷史訓練紀錄明細清單 (可單筆刪除誤按的組數) -->
+      <div class="bg-iron-900 border border-iron-800 rounded-2xl p-4 shadow-xl space-y-3">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold text-white flex items-center gap-1.5">
+            <i data-lucide="history" class="w-3.5 h-3.5 text-accent-green"></i>
+            歷史組數紀錄 (誤按可刪除)
+          </span>
+          <button id="toggleHistoryListBtn" class="text-[11px] text-accent-green hover:underline font-mono">
+            展開清單
+          </button>
+        </div>
+        <div id="historyLogsContainer" class="space-y-1.5 max-h-72 overflow-y-auto custom-scrollbar hidden">
+          <!-- 動態渲染歷史組數明細 -->
+        </div>
+      </div>
+
       <!-- 資料備份與管理 -->
       <div class="bg-iron-900 border border-iron-800 rounded-2xl p-4 space-y-3">
-        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">資料備份與還原 (離線自主)</span>
+        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">資料管理與重置</span>
         <div class="grid grid-cols-2 gap-2">
           <button id="exportJsonBackupBtn"
             class="tap-active py-2.5 px-3 bg-iron-800 hover:bg-iron-750 border border-iron-700 rounded-xl text-xs font-bold text-slate-200 flex items-center justify-center gap-1.5">
@@ -387,6 +403,18 @@
             <i data-lucide="upload" class="w-3.5 h-3.5 text-accent-blue"></i> 匯入還原
             <input type="file" id="importJsonBackupInput" accept=".json" class="hidden">
           </label>
+        </div>
+
+        <!-- 重置 / 清空歷史紀錄按鈕 (專為使用者清理誤觸或測試假資料設計) -->
+        <div class="pt-2 border-t border-iron-800 flex flex-col gap-2">
+          <button id="clearAllHistoryBtn"
+            class="w-full py-2.5 px-3 bg-rose-950/40 hover:bg-rose-900/60 border border-rose-800/60 rounded-xl text-xs font-bold text-rose-300 flex items-center justify-center gap-1.5 tap-active">
+            <i data-lucide="trash" class="w-3.5 h-3.5 text-rose-400"></i> 一鍵清空所有訓練紀錄與 PR (保留課表)
+          </button>
+          <button id="factoryResetBtn"
+            class="text-[11px] text-slate-500 hover:text-rose-400 text-center py-1">
+            徹底重設為全新出廠狀態 (清除所有資料)
+          </button>
         </div>
       </div>
     </section>
@@ -565,7 +593,7 @@
   </div>
 
   <!-- 應用程式核心邏輯腳本 (附帶版本快取破除機制) -->
-  <script src="./app.js?v=4.1"></script>
+  <script src="./app.js?v=4.2"></script>
 
   <!-- Service Worker 註冊與自動更新 -->
   <script>

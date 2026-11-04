@@ -101,26 +101,8 @@ const MOBILITY_PROTOCOLS = {
   ]
 };
 
-// 豐富的歷史真實數據 (供熱圖與折線圖使用)
-const INITIAL_HISTORY = [
-  // 12 天前
-  { id: 'h1', date: '2026-10-24', timestamp: 1792828800000, exerciseId: 'bench-press', exerciseName: '平板槓鈴臥推 (Bench Press)', category: '胸部', weight: 75, reps: 8, rpe: 8, setType: 'working', e1rm: 105.2 },
-  { id: 'h2', date: '2026-10-24', timestamp: 1792828860000, exerciseId: 'bench-press', exerciseName: '平板槓鈴臥推 (Bench Press)', category: '胸部', weight: 75, reps: 8, rpe: 8, setType: 'working', e1rm: 105.2 },
-  // 9 天前
-  { id: 'h3', date: '2026-10-27', timestamp: 1793088000000, exerciseId: 'squat', exerciseName: '槓鈴頸後深蹲 (Back Squat)', category: '腿部', weight: 100, reps: 6, rpe: 8, setType: 'working', e1rm: 125.0 },
-  { id: 'h4', date: '2026-10-27', timestamp: 1793088060000, exerciseId: 'squat', exerciseName: '槓鈴頸後深蹲 (Back Squat)', category: '腿部', weight: 105, reps: 6, rpe: 8.5, setType: 'working', e1rm: 129.5 },
-  // 7 天前
-  { id: 'h5', date: '2026-10-29', timestamp: 1793260800000, exerciseId: 'deadlift', exerciseName: '傳統硬舉 (Conventional Deadlift)', category: '背部', weight: 130, reps: 5, rpe: 8, setType: 'working', e1rm: 160.2 },
-  { id: 'h6', date: '2026-10-29', timestamp: 1793260860000, exerciseId: 'barbell-row', exerciseName: '槓鈴划船 (Barbell Row)', category: '背部', weight: 65, reps: 8, rpe: 8, setType: 'working', e1rm: 91.2 },
-  // 5 天前
-  { id: 'h7', date: '2026-10-31', timestamp: 1793433600000, exerciseId: 'bench-press', exerciseName: '平板槓鈴臥推 (Bench Press)', category: '胸部', weight: 80, reps: 8, rpe: 8, setType: 'working', e1rm: 112.2 },
-  { id: 'h8', date: '2026-10-31', timestamp: 1793433660000, exerciseId: 'incline-db-press', exerciseName: '上斜啞鈴臥推 (Incline DB Press)', category: '胸部', weight: 28, reps: 10, rpe: 8, setType: 'working', e1rm: 42.1 },
-  // 3 天前
-  { id: 'h9', date: '2026-11-02', timestamp: 1793606400000, exerciseId: 'squat', exerciseName: '槓鈴頸後深蹲 (Back Squat)', category: '腿部', weight: 115, reps: 6, rpe: 8.5, setType: 'working', e1rm: 141.8 },
-  // 昨天
-  { id: 'h10', date: '2026-11-04', timestamp: 1793779200000, exerciseId: 'deadlift', exerciseName: '傳統硬舉 (Conventional Deadlift)', category: '背部', weight: 140, reps: 5, rpe: 8, setType: 'working', e1rm: 172.6 },
-  { id: 'h11', date: '2026-11-04', timestamp: 1793779260000, exerciseId: 'lat-pulldown', exerciseName: '高位滑輪下拉 (Lat Pulldown)', category: '背部', weight: 60, reps: 10, rpe: 8, setType: 'working', e1rm: 85.0 }
-];
+// 預設為純淨空歷史 (不塞任何假數據)
+const INITIAL_HISTORY = [];
 
 // ======================= 2. 本地儲存鍵值與全域狀態 =======================
 const STORAGE_KEYS = {
@@ -936,6 +918,9 @@ function renderAnalyticsView() {
 
   // 5. 渲染 PR 榮譽牆
   renderPrHonorGrid(prMap);
+
+  // 6. 渲染歷史組數明細列表 (支援單筆刪除誤按)
+  renderHistoryLogsList();
 }
 
 // 繪製類似 GitHub Commit 的方塊日曆熱圖
@@ -1105,6 +1090,45 @@ function renderPrHonorGrid(prMap) {
     `;
     container.appendChild(card);
   });
+}
+
+// 渲染詳細歷史紀錄清單 (支援單筆刪除誤按)
+function renderHistoryLogsList() {
+  const container = document.getElementById('historyLogsContainer');
+  if (!container) return;
+  container.innerHTML = '';
+
+  if (state.history.length === 0) {
+    container.innerHTML = `<div class="text-center py-4 text-xs text-slate-500">目前尚無歷史訓練紀錄。</div>`;
+    return;
+  }
+
+  // 依時間最新排在最前
+  const sorted = [...state.history].sort((a, b) => b.timestamp - a.timestamp);
+
+  sorted.forEach(item => {
+    const row = document.createElement('div');
+    row.className = 'flex items-center justify-between p-2 rounded-xl bg-iron-950 border border-iron-800/80 text-xs';
+    row.innerHTML = `
+      <div class="space-y-0.5">
+        <div class="flex items-center gap-2">
+          <strong class="text-white text-xs">${item.exerciseName}</strong>
+          <span class="text-[10px] font-mono text-slate-500">${item.date}</span>
+        </div>
+        <div class="flex items-center gap-2 text-[11px] font-mono text-slate-400">
+          <span class="text-accent-green font-bold">${item.weight} kg × ${item.reps} 次</span>
+          <span>@ RPE ${item.rpe || 8}</span>
+          <span>(e1RM: ${item.e1rm}k)</span>
+        </div>
+      </div>
+      <button data-action="delete-single-history" data-history-id="${item.id}" class="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-950/40 tap-active" title="刪除此筆紀錄">
+        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+      </button>
+    `;
+    container.appendChild(row);
+  });
+
+  if (window.lucide) lucide.createIcons();
 }
 
 // ======================= 9. 動作選擇庫與自由打字建立動作 (Modals) =======================
@@ -1701,6 +1725,64 @@ function setupEventListeners() {
   document.getElementById('analyticsExerciseSelect').addEventListener('change', (e) => {
     renderStrengthLineChart(e.target.value);
   });
+
+  // 展開/收起歷史紀錄明細清單
+  const toggleHistoryBtn = document.getElementById('toggleHistoryListBtn');
+  if (toggleHistoryBtn) {
+    toggleHistoryBtn.addEventListener('click', () => {
+      const container = document.getElementById('historyLogsContainer');
+      const isHidden = container.classList.toggle('hidden');
+      toggleHistoryBtn.textContent = isHidden ? '展開清單' : '收起清單';
+    });
+  }
+
+  // 刪除單筆歷史紀錄事件委託
+  const historyContainer = document.getElementById('historyLogsContainer');
+  if (historyContainer) {
+    historyContainer.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-action="delete-single-history"]');
+      if (!btn) return;
+      const id = btn.getAttribute('data-history-id');
+      if (confirm('確定刪除此筆訓練紀錄？刪除後數據分析與 PR 將重新計算。')) {
+        state.history = state.history.filter(h => h.id !== id);
+        saveState();
+        renderAnalyticsView();
+        alertToast('已刪除該筆紀錄');
+        sound.vibrate(20);
+      }
+    });
+  }
+
+  // 一鍵清空所有歷史紀錄與 PR (保留使用者自訂課表)
+  const clearHistoryBtn = document.getElementById('clearAllHistoryBtn');
+  if (clearHistoryBtn) {
+    clearHistoryBtn.addEventListener('click', () => {
+      if (confirm('確定要清空所有歷史訓練紀錄與 PR 嗎？\n\n（您的自訂課表與排程會完整保留，僅清除歷史組數數據）')) {
+        state.history = [];
+        saveState();
+        renderAnalyticsView();
+        alertToast('已成功清空所有歷史紀錄與 PR！');
+        sound.vibrate(30);
+      }
+    });
+  }
+
+  // 徹底出廠重置 (Clear All Data)
+  const factoryResetBtn = document.getElementById('factoryResetBtn');
+  if (factoryResetBtn) {
+    factoryResetBtn.addEventListener('click', () => {
+      if (confirm('⚠️ 警告：這將徹底清除所有資料（包含所有課表、排程、歷史紀錄），恢復全新狀態！確定要繼續嗎？')) {
+        localStorage.clear();
+        state.history = [];
+        state.exercises = [...DEFAULT_EXERCISES];
+        state.routines = [...DEFAULT_ROUTINES];
+        state.weeklySplit = { ...DEFAULT_WEEKLY_SPLIT };
+        state.activeWorkout = null;
+        saveState();
+        location.reload();
+      }
+    });
+  }
 
   // 匯出 JSON 備份
   document.getElementById('exportJsonBackupBtn').addEventListener('click', () => {
