@@ -494,15 +494,29 @@
     </div>
   </div>
 
-  <!-- 應用程式邏輯腳本 -->
-  <script src="./app.js"></script>
+  <!-- 應用程式邏輯腳本 (附帶版本快取破除機制) -->
+  <script src="./app.js?v=3.0"></script>
 
-  <!-- Service Worker 註冊 -->
+  <!-- Service Worker 註冊與自動熱更新 -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('./sw.js')
-          .then(reg => console.log('[IronLog Pro] SW registered:', reg.scope))
+          .then(reg => {
+            console.log('[IronLog Pro] SW registered:', reg.scope);
+            // 當發現有新版本 SW 安裝時，自動重載頁面以套用最新版
+            reg.addEventListener('updatefound', () => {
+              const newWorker = reg.installing;
+              if (newWorker) {
+                newWorker.addEventListener('statechange', () => {
+                  if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                    console.log('[IronLog Pro] New update available, reloading...');
+                    window.location.reload();
+                  }
+                });
+              }
+            });
+          })
           .catch(err => console.warn('[IronLog Pro] SW failed:', err));
       });
     }
