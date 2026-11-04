@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ironlog-pwa-v1';
+const CACHE_NAME = 'ironlog-pwa-v2';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -8,16 +8,17 @@ const ASSETS_TO_CACHE = [
   './icons/icon-512.png',
   './icons/icon.svg',
   'https://cdn.tailwindcss.com',
-  'https://unpkg.com/lucide@latest'
+  'https://unpkg.com/lucide@latest',
+  'https://cdn.jsdelivr.net/npm/chart.js'
 ];
 
 // Install Event: Cache Core Static Files
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[IronLog SW] Pre-caching offline shell');
+      console.log('[IronLog SW v2] Pre-caching offline shell');
       return cache.addAll(ASSETS_TO_CACHE).catch((err) => {
-        console.warn('[IronLog SW] Non-critical cache failed for some resources:', err);
+        console.warn('[IronLog SW v2] Non-critical cache failed for some resources:', err);
       });
     })
   );
@@ -31,7 +32,7 @@ self.addEventListener('activate', (event) => {
       return Promise.all(
         keys.map((key) => {
           if (key !== CACHE_NAME) {
-            console.log('[IronLog SW] Removing old cache', key);
+            console.log('[IronLog SW v2] Removing old cache', key);
             return caches.delete(key);
           }
         })
@@ -41,7 +42,7 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch Event: Stale-While-Revalidate or Network-first with Cache fallback
+// Fetch Event: Stale-While-Revalidate
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
@@ -63,4 +64,3 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
-

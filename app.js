@@ -1,202 +1,316 @@
 /**
- * IronLog PWA - 核心應用程式邏輯
- * 專為健身房現場操作優化：防手抖、高對比、單手大按鈕、離線持久化
+ * IronLog Pro - 核心應用程式邏輯 (Hevy + Fitbod Clean Workflow)
+ * 具備訓練工作表打勾流、肌群疲勞恢復模型、Chart.js 進階圖表、槓片速算抽屜
  */
 
-// ======================= 1. 預設資料與常數 =======================
+// ======================= 1. 預設動作庫與替代關係 =======================
 const DEFAULT_EXERCISES = [
-  { id: 'bench-press', name: '平板槓鈴臥推 (Bench Press)', category: '胸部' },
-  { id: 'incline-db-press', name: '上斜啞鈴臥推 (Incline DB Press)', category: '胸部' },
-  { id: 'squat', name: '槓鈴頸後深蹲 (Back Squat)', category: '腿部' },
-  { id: 'front-squat', name: '槓鈴前蹲舉 (Front Squat)', category: '腿部' },
-  { id: 'deadlift', name: '傳統硬舉 (Conventional Deadlift)', category: '背部' },
-  { id: 'sumo-deadlift', name: '相撲硬舉 (Sumo Deadlift)', category: '背部' },
-  { id: 'barbell-row', name: '槓鈴划船 (Barbell Row)', category: '背部' },
-  { id: 'pull-up', name: '負重/自體引體向上 (Pull-Up)', category: '背部' },
-  { id: 'ohp', name: '槓鈴站姿肩推 (Overhead Press)', category: '肩部' },
-  { id: 'rdl', name: '羅馬尼亞硬舉 (RDL)', category: '腿部' },
-  { id: 'dips', name: '雙槓臂屈伸 (Dips)', category: '胸部' }
-];
-
-// 槓片規格與國際標準塗裝配色 (IPF / IWF 色彩規範)
-const PLATE_SPECS = [
-  { weight: 25, color: '#ef4444', textColor: '#ffffff', label: '25', height: 'h-20', width: 'w-6', border: 'border-red-600' },
-  { weight: 20, color: '#3b82f6', textColor: '#ffffff', label: '20', height: 'h-18', width: 'w-5', border: 'border-blue-600' },
-  { weight: 15, color: '#eab308', textColor: '#000000', label: '15', height: 'h-16', width: 'w-5', border: 'border-yellow-600' },
-  { weight: 10, color: '#22c55e', textColor: '#ffffff', label: '10', height: 'h-14', width: 'w-4', border: 'border-green-600' },
-  { weight: 5, color: '#f8fafc', textColor: '#0f172a', label: '5', height: 'h-12', width: 'w-4', border: 'border-slate-300' },
-  { weight: 2.5, color: '#1e293b', textColor: '#f8fafc', label: '2.5', height: 'h-10', width: 'w-3.5', border: 'border-slate-600' },
-  { weight: 1.25, color: '#94a3b8', textColor: '#0f172a', label: '1.25', height: 'h-8', width: 'w-3', border: 'border-slate-400' }
-];
-
-// RTS (Reactive Training Systems) 官方 RPE 百分比對照矩陣
-const RTS_RPE_CHART = {
-  // reps: { rpe: %1RM }
-  1: { 10: 1.000, 9.5: 0.978, 9: 0.955, 8.5: 0.939, 8: 0.922, 7.5: 0.907, 7: 0.892, 6.5: 0.878, 6: 0.863 },
-  2: { 10: 0.955, 9.5: 0.939, 9: 0.922, 8.5: 0.907, 8: 0.892, 7.5: 0.878, 7: 0.863, 6.5: 0.849, 6: 0.834 },
-  3: { 10: 0.922, 9.5: 0.907, 9: 0.892, 8.5: 0.878, 8: 0.863, 7.5: 0.849, 7: 0.834, 6.5: 0.819, 6: 0.804 },
-  4: { 10: 0.892, 9.5: 0.878, 9: 0.863, 8.5: 0.849, 8: 0.834, 7.5: 0.819, 7: 0.804, 6.5: 0.790, 6: 0.774 },
-  5: { 10: 0.863, 9.5: 0.849, 9: 0.834, 8.5: 0.819, 8: 0.811, 7.5: 0.790, 7: 0.774, 6.5: 0.760, 6: 0.744 },
-  6: { 10: 0.834, 9.5: 0.819, 9: 0.804, 8.5: 0.790, 8: 0.774, 7.5: 0.760, 7: 0.744, 6.5: 0.728, 6: 0.713 },
-  7: { 10: 0.804, 9.5: 0.790, 9: 0.774, 8.5: 0.760, 8: 0.744, 7.5: 0.728, 7: 0.713, 6.5: 0.697, 6: 0.681 },
-  8: { 10: 0.774, 9.5: 0.760, 9: 0.744, 8.5: 0.728, 8: 0.713, 7.5: 0.697, 7: 0.681, 6.5: 0.665, 6: 0.649 },
-  9: { 10: 0.744, 9.5: 0.728, 9: 0.713, 8.5: 0.697, 8: 0.681, 7.5: 0.665, 7: 0.649, 6.5: 0.632, 6: 0.617 },
-  10: { 10: 0.713, 9.5: 0.697, 9: 0.681, 8.5: 0.665, 8: 0.649, 7.5: 0.632, 7: 0.617, 6.5: 0.601, 6: 0.584 },
-  11: { 10: 0.681, 9.5: 0.665, 9: 0.649, 8.5: 0.632, 8: 0.617, 7.5: 0.601, 7: 0.584, 6.5: 0.569, 6: 0.553 },
-  12: { 10: 0.649, 9.5: 0.632, 9: 0.617, 8.5: 0.601, 8: 0.584, 7.5: 0.569, 7: 0.553, 6.5: 0.538, 6: 0.522 }
-};
-
-// ======================= 2. 本地儲存資料結構 =======================
-const STORAGE_KEYS = {
-  EXERCISES: 'ironlog_exercises_v1',
-  LOGS: 'ironlog_history_v1',
-  SETTINGS: 'ironlog_settings_v1'
-};
-
-// 初始化預設訓練日誌種子資料（便於初次體驗漸進超負荷與上次表現功能）
-const SEED_LOGS = [
   {
-    id: 'seed-1',
-    date: '2026-10-28',
-    timestamp: 1793174400000,
-    exerciseId: 'bench-press',
-    exerciseName: '平板槓鈴臥推 (Bench Press)',
-    weight: 80,
-    reps: 8,
-    rpe: 8,
-    setType: 'working',
-    e1rm: 112.2
+    id: 'bench-press',
+    name: '平板槓鈴臥推 (Bench Press)',
+    category: '胸部',
+    equipment: '槓鈴',
+    alternatives: ['db-bench-press', 'chest-press-machine', 'dips']
   },
   {
-    id: 'seed-2',
-    date: '2026-10-28',
-    timestamp: 1793174460000,
-    exerciseId: 'bench-press',
-    exerciseName: '平板槓鈴臥推 (Bench Press)',
-    weight: 80,
-    reps: 8,
-    rpe: 8.5,
-    setType: 'working',
-    e1rm: 110.0
+    id: 'db-bench-press',
+    name: '平板啞鈴臥推 (DB Bench Press)',
+    category: '胸部',
+    equipment: '啞鈴',
+    alternatives: ['bench-press', 'incline-db-press']
   },
   {
-    id: 'seed-3',
-    date: '2026-10-26',
-    timestamp: 1793001600000,
-    exerciseId: 'squat',
-    exerciseName: '槓鈴頸後深蹲 (Back Squat)',
-    weight: 120,
-    reps: 5,
-    rpe: 8,
-    setType: 'working',
-    e1rm: 148.0
+    id: 'incline-db-press',
+    name: '上斜啞鈴臥推 (Incline DB Press)',
+    category: '胸部',
+    equipment: '啞鈴',
+    alternatives: ['bench-press', 'chest-press-machine']
+  },
+  {
+    id: 'chest-press-machine',
+    name: '坐姿機械胸推 (Chest Press Machine)',
+    category: '胸部',
+    equipment: '機械',
+    alternatives: ['bench-press', 'db-bench-press']
+  },
+  {
+    id: 'squat',
+    name: '槓鈴頸後深蹲 (Back Squat)',
+    category: '腿部',
+    equipment: '槓鈴',
+    alternatives: ['leg-press', 'front-squat', 'goblet-squat']
+  },
+  {
+    id: 'front-squat',
+    name: '槓鈴前蹲舉 (Front Squat)',
+    category: '腿部',
+    equipment: '槓鈴',
+    alternatives: ['squat', 'leg-press']
+  },
+  {
+    id: 'leg-press',
+    name: '45度仰臥腿推機 (Leg Press)',
+    category: '腿部',
+    equipment: '機械',
+    alternatives: ['squat', 'front-squat']
+  },
+  {
+    id: 'rdl',
+    name: '羅馬尼亞硬舉 (RDL)',
+    category: '腿部',
+    equipment: '槓鈴',
+    alternatives: ['deadlift', 'leg-curl']
+  },
+  {
+    id: 'deadlift',
+    name: '傳統硬舉 (Conventional Deadlift)',
+    category: '背部',
+    equipment: '槓鈴',
+    alternatives: ['sumo-deadlift', 'barbell-row']
+  },
+  {
+    id: 'sumo-deadlift',
+    name: '相撲硬舉 (Sumo Deadlift)',
+    category: '背部',
+    equipment: '槓鈴',
+    alternatives: ['deadlift', 'rdl']
+  },
+  {
+    id: 'barbell-row',
+    name: '槓鈴划船 (Barbell Row)',
+    category: '背部',
+    equipment: '槓鈴',
+    alternatives: ['lat-pulldown', 'seated-cable-row']
+  },
+  {
+    id: 'lat-pulldown',
+    name: '高位滑輪下拉 (Lat Pulldown)',
+    category: '背部',
+    equipment: '滑輪',
+    alternatives: ['pull-up', 'barbell-row']
+  },
+  {
+    id: 'pull-up',
+    name: '引體向上 (Pull-Up)',
+    category: '背部',
+    equipment: '自體重',
+    alternatives: ['lat-pulldown', 'barbell-row']
+  },
+  {
+    id: 'ohp',
+    name: '槓鈴站姿肩推 (Overhead Press)',
+    category: '肩部',
+    equipment: '槓鈴',
+    alternatives: ['db-shoulder-press', 'lateral-raise']
+  },
+  {
+    id: 'db-shoulder-press',
+    name: '坐姿啞鈴肩推 (DB Shoulder Press)',
+    category: '肩部',
+    equipment: '啞鈴',
+    alternatives: ['ohp', 'lateral-raise']
+  },
+  {
+    id: 'lateral-raise',
+    name: '啞鈴側平舉 (Lateral Raise)',
+    category: '肩部',
+    equipment: '啞鈴',
+    alternatives: ['cable-lateral-raise', 'ohp']
+  },
+  {
+    id: 'bicep-curl',
+    name: '槓鈴/啞鈴彎舉 (Bicep Curl)',
+    category: '手臂/核心',
+    equipment: '啞鈴',
+    alternatives: ['tricep-pushdown']
+  },
+  {
+    id: 'tricep-pushdown',
+    name: '滑輪三頭肌下壓 (Tricep Pushdown)',
+    category: '手臂/核心',
+    equipment: '滑輪',
+    alternatives: ['dips', 'bicep-curl']
+  },
+  {
+    id: 'dips',
+    name: '雙槓臂屈伸 (Dips)',
+    category: '胸部',
+    equipment: '自體重',
+    alternatives: ['chest-press-machine', 'tricep-pushdown']
   }
 ];
 
-// 應用程式全域狀態
+// 槓片規格與色彩
+const PLATE_SPECS = [
+  { weight: 25, color: '#ef4444', textColor: '#ffffff', label: '25', height: 'h-16', width: 'w-4', border: 'border-red-600' },
+  { weight: 20, color: '#3b82f6', textColor: '#ffffff', label: '20', height: 'h-15', width: 'w-3.5', border: 'border-blue-600' },
+  { weight: 15, color: '#eab308', textColor: '#000000', label: '15', height: 'h-13', width: 'w-3.5', border: 'border-yellow-600' },
+  { weight: 10, color: '#10b981', textColor: '#ffffff', label: '10', height: 'h-11', width: 'w-3', border: 'border-emerald-600' },
+  { weight: 5, color: '#f8fafc', textColor: '#0f172a', label: '5', height: 'h-9', width: 'w-3', border: 'border-slate-300' },
+  { weight: 2.5, color: '#1e293b', textColor: '#f8fafc', label: '2.5', height: 'h-8', width: 'w-2.5', border: 'border-slate-600' },
+  { weight: 1.25, color: '#94a3b8', textColor: '#0f172a', label: '1.25', height: 'h-6', width: 'w-2', border: 'border-slate-400' }
+];
+
+// RTS 官方 RPE 矩陣 (前5下精確對照)
+const RTS_RPE_TABLE = {
+  1: { 10: 1.000, 9.5: 0.978, 9: 0.955, 8.5: 0.939, 8: 0.922 },
+  2: { 10: 0.955, 9.5: 0.939, 9: 0.922, 8.5: 0.907, 8: 0.892 },
+  3: { 10: 0.922, 9.5: 0.907, 9: 0.892, 8.5: 0.878, 8: 0.863 },
+  4: { 10: 0.892, 9.5: 0.878, 9: 0.863, 8.5: 0.849, 8: 0.834 },
+  5: { 10: 0.863, 9.5: 0.849, 9: 0.834, 8.5: 0.819, 8: 0.811 },
+  6: { 10: 0.834, 9.5: 0.819, 9: 0.804, 8.5: 0.790, 8: 0.774 },
+  8: { 10: 0.774, 9.5: 0.760, 9: 0.744, 8.5: 0.728, 8: 0.713 },
+  10: { 10: 0.713, 9.5: 0.697, 9: 0.681, 8.5: 0.665, 8: 0.649 },
+  12: { 10: 0.649, 9.5: 0.632, 9: 0.617, 8.5: 0.601, 8: 0.584 }
+};
+
+// ======================= 2. 本地儲存與全域狀態 =======================
+const STORAGE_KEYS = {
+  EXERCISES: 'ironlog_pro_exercises',
+  HISTORY: 'ironlog_pro_history',
+  ACTIVE_WORKOUT: 'ironlog_pro_active_workout',
+  SETTINGS: 'ironlog_pro_settings'
+};
+
+// 豐富的歷史真實數據，使首次使用即具備圖表與恢復展示
+const INITIAL_DEMO_HISTORY = [
+  // 6 天前 (深蹲主項)
+  { id: 'h1', date: '2026-10-29', timestamp: 1793260800000, exerciseId: 'squat', exerciseName: '槓鈴頸後深蹲 (Back Squat)', category: '腿部', weight: 110, reps: 5, rpe: 8, setType: 'working', e1rm: 135.6 },
+  { id: 'h2', date: '2026-10-29', timestamp: 1793260860000, exerciseId: 'squat', exerciseName: '槓鈴頸後深蹲 (Back Squat)', category: '腿部', weight: 115, reps: 5, rpe: 8.5, setType: 'working', e1rm: 140.4 },
+  { id: 'h3', date: '2026-10-29', timestamp: 1793260920000, exerciseId: 'squat', exerciseName: '槓鈴頸後深蹲 (Back Squat)', category: '腿部', weight: 120, reps: 5, rpe: 9, setType: 'working', e1rm: 143.9 },
+  // 4 天前 (臥推主項)
+  { id: 'h4', date: '2026-10-31', timestamp: 1793433600000, exerciseId: 'bench-press', exerciseName: '平板槓鈴臥推 (Bench Press)', category: '胸部', weight: 75, reps: 8, rpe: 8, setType: 'working', e1rm: 105.2 },
+  { id: 'h5', date: '2026-10-31', timestamp: 1793433660000, exerciseId: 'bench-press', exerciseName: '平板槓鈴臥推 (Bench Press)', category: '胸部', weight: 80, reps: 8, rpe: 8.5, setType: 'working', e1rm: 110.0 },
+  { id: 'h6', date: '2026-10-31', timestamp: 1793433720000, exerciseId: 'incline-db-press', exerciseName: '上斜啞鈴臥推 (Incline DB Press)', category: '胸部', weight: 28, reps: 10, rpe: 8.5, setType: 'working', e1rm: 42.1 },
+  // 2 天前 (硬舉與背部)
+  { id: 'h7', date: '2026-11-02', timestamp: 1793606400000, exerciseId: 'deadlift', exerciseName: '傳統硬舉 (Conventional Deadlift)', category: '背部', weight: 140, reps: 5, rpe: 8, setType: 'working', e1rm: 172.6 },
+  { id: 'h8', date: '2026-11-02', timestamp: 1793606460000, exerciseId: 'barbell-row', exerciseName: '槓鈴划船 (Barbell Row)', category: '背部', weight: 70, reps: 8, rpe: 8, setType: 'working', e1rm: 98.2 }
+];
+
 const state = {
   exercises: [],
-  logs: [],
+  history: [],
   settings: {
     barWeight: 20,
     restDuration: 90
   },
-  currentTab: 'tab-plate',
-  activeSetType: 'working',
-  activeLogRpe: 8,
-  // 計時器狀態
+  // 當前進行中的訓練工作表 (Workout Sheet)
+  activeWorkout: {
+    startTime: Date.now(),
+    exercises: [
+      {
+        exerciseId: 'bench-press',
+        sets: [
+          { id: 's1', setType: 'working', weight: 80, reps: 8, rpe: 8, isCompleted: false },
+          { id: 's2', setType: 'working', weight: 80, reps: 8, rpe: 8, isCompleted: false },
+          { id: 's3', setType: 'working', weight: 80, reps: 8, rpe: 8.5, isCompleted: false }
+        ]
+      },
+      {
+        exerciseId: 'incline-db-press',
+        sets: [
+          { id: 's4', setType: 'working', weight: 30, reps: 10, rpe: 8, isCompleted: false },
+          { id: 's5', setType: 'working', weight: 30, reps: 10, rpe: 8.5, isCompleted: false }
+        ]
+      }
+    ]
+  },
+  currentNav: 'tab-workout',
+  // 計時器
   timer: {
     intervalId: null,
     remainingSeconds: 0,
-    totalSeconds: 90,
     isRunning: false
+  },
+  // 抽屜臨時狀態
+  currentPlateTarget: {
+    weight: 80,
+    originSetRef: null
+  },
+  currentSwapExerciseId: null,
+  // Chart.js 實例快取
+  charts: {
+    strength: null,
+    muscle: null
   }
 };
 
-// ======================= 3. 音效與震動模組 (現場觸覺與聽覺回饋) =======================
-class FeedbackManager {
+// ======================= 3. 音效與震動回饋 =======================
+class HapticFeedback {
   constructor() {
     this.audioCtx = null;
   }
 
   initAudio() {
     if (!this.audioCtx) {
-      const AudioContext = window.AudioContext || window.webkitAudioContext;
-      if (AudioContext) {
-        this.audioCtx = new AudioContext();
-      }
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (AC) this.audioCtx = new AC();
     }
   }
 
-  // 播放簡潔清晰的音效 (不需外部 mp3)
   beep(freq = 880, type = 'sine', duration = 0.15) {
     try {
       this.initAudio();
       if (!this.audioCtx) return;
-      if (this.audioCtx.state === 'suspended') {
-        this.audioCtx.resume();
-      }
+      if (this.audioCtx.state === 'suspended') this.audioCtx.resume();
       const osc = this.audioCtx.createOscillator();
       const gain = this.audioCtx.createGain();
       osc.type = type;
       osc.frequency.setValueAtTime(freq, this.audioCtx.currentTime);
-      gain.gain.setValueAtTime(0.12, this.audioCtx.currentTime);
+      gain.gain.setValueAtTime(0.1, this.audioCtx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, this.audioCtx.currentTime + duration);
       osc.connect(gain);
       gain.connect(this.audioCtx.destination);
       osc.start();
       osc.stop(this.audioCtx.currentTime + duration);
-    } catch (e) {
-      console.warn('Audio play failed:', e);
-    }
+    } catch (e) {}
   }
 
-  // 計時器倒數結束的三聲提示
+  playCheckSound() {
+    this.beep(880, 'sine', 0.08);
+    this.vibrate(25);
+  }
+
+  playPRCelebration() {
+    this.beep(523, 'triangle', 0.1);
+    setTimeout(() => this.beep(659, 'triangle', 0.1), 100);
+    setTimeout(() => this.beep(784, 'triangle', 0.12), 200);
+    setTimeout(() => this.beep(1046, 'sine', 0.35), 320);
+    this.vibrate([80, 50, 120, 50, 200]);
+  }
+
   playTimerDone() {
-    this.beep(784, 'square', 0.15); // G5
-    setTimeout(() => this.beep(880, 'square', 0.15), 180); // A5
-    setTimeout(() => this.beep(1046, 'square', 0.35), 360); // C6
+    this.beep(784, 'square', 0.12);
+    setTimeout(() => this.beep(880, 'square', 0.12), 160);
+    setTimeout(() => this.beep(1046, 'square', 0.3), 320);
     this.vibrate([150, 100, 150, 100, 300]);
   }
 
-  // PR 突破時的激勵三和弦
-  playPRCelebration() {
-    this.beep(523.25, 'triangle', 0.12);
-    setTimeout(() => this.beep(659.25, 'triangle', 0.12), 120);
-    setTimeout(() => this.beep(783.99, 'triangle', 0.15), 240);
-    setTimeout(() => this.beep(1046.50, 'sine', 0.4), 380);
-    this.vibrate([100, 80, 150, 80, 250]);
-  }
-
-  // 觸覺微震動 (提供如同原生 App 的實體按鈕回饋)
-  vibrate(pattern = 30) {
-    if ('vibrate' in navigator) {
-      navigator.vibrate(pattern);
-    }
+  vibrate(pattern = 25) {
+    if ('vibrate' in navigator) navigator.vibrate(pattern);
   }
 }
 
-const feedback = new FeedbackManager();
+const feedback = new HapticFeedback();
 
-// ======================= 4. 槓片與熱身計算演算法 =======================
+// ======================= 4. 計算函式 (e1RM, 槓片, 肌群恢復) =======================
 
-/**
- * 計算兩側槓片配置 (貪婪配算法)
- * @param {number} totalWeight 總目標重量 (kg)
- * @param {number} barWeight 槓鈴本體重 (kg)
- * @returns {Object} { sideWeight, plates: [{weight, count}], remainder, isValid }
- */
+function calculateE1RM(weight, reps, rpe = 8) {
+  if (weight <= 0 || reps <= 0) return 0;
+  const repKey = Math.min(Math.max(1, Math.round(reps)), 12);
+  const rpeKey = Math.min(Math.max(6, rpe), 10);
+
+  if (RTS_RPE_TABLE[repKey] && RTS_RPE_TABLE[repKey][rpeKey]) {
+    return Math.round((weight / RTS_RPE_TABLE[repKey][rpeKey]) * 10) / 10;
+  }
+  const rir = Math.max(0, 10 - rpe);
+  return Math.round((weight * (1 + (reps + rir) / 30)) * 10) / 10;
+}
+
 function calculatePlates(totalWeight, barWeight = 20) {
   if (totalWeight < barWeight) {
-    return {
-      sideWeight: 0,
-      plates: [],
-      remainder: totalWeight - barWeight,
-      isValid: false,
-      error: `目標重量低於槓鈴本體 (${barWeight} kg)`
-    };
+    return { sideWeight: 0, plates: [], remainder: 0, isValid: false };
   }
-
   const sideWeight = (totalWeight - barWeight) / 2;
   let remaining = sideWeight;
   const plates = [];
@@ -205,568 +319,772 @@ function calculatePlates(totalWeight, barWeight = 20) {
     if (remaining <= 0) break;
     const count = Math.floor((remaining + 0.0001) / spec.weight);
     if (count > 0) {
-      plates.push({
-        ...spec,
-        count
-      });
+      plates.push({ ...spec, count });
       remaining = Math.round((remaining - count * spec.weight) * 100) / 100;
     }
   }
-
-  return {
-    sideWeight,
-    plates,
-    remainder: remaining,
-    isValid: true
-  };
+  return { sideWeight, plates, remainder: remaining, isValid: true };
 }
 
 /**
- * 生成 4~5 組科學熱身排程 (Warmup Protocol)
- * 漸進活化神經、適應負重，同時避免肌力疲勞
- * @param {number} targetWeight 目標正式組重量
- * @param {number} barWeight 槓重
+ * Fitbod 風格肌群疲勞恢復模型
+ * 依據距今訓練天數與近 7 天總訓練組數計算恢復度 (0~100%)
  */
-function generateWarmupProtocol(targetWeight, barWeight = 20) {
-  const steps = [];
+function calculateMuscleRecovery() {
+  const muscleGroups = ['胸部', '背部', '腿部', '肩部', '手臂/核心'];
+  const now = Date.now();
+  const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
-  // Step 1: 空槓活動度與關節溫熱
-  steps.push({
-    title: 'Set 1: 空槓關節活化',
-    weight: barWeight,
-    reps: '10 次',
-    intensity: '關節活動',
-    desc: '專注動作軌跡、核心收緊與本體感覺'
+  const results = {};
+
+  muscleGroups.forEach(group => {
+    // 篩選屬於該肌群的歷史組數
+    const groupLogs = state.history.filter(h => {
+      const ex = state.exercises.find(e => e.id === h.exerciseId);
+      return (ex && ex.category === group) || h.category === group;
+    }).sort((a, b) => b.timestamp - a.timestamp);
+
+    if (groupLogs.length === 0) {
+      // 從未訓練過，100% 恢復
+      results[group] = {
+        pct: 100,
+        daysAgo: null,
+        recentSets: 0,
+        statusText: '完全充血恢復',
+        color: 'text-hevy-green',
+        bg: 'bg-hevy-green'
+      };
+      return;
+    }
+
+    const lastLog = groupLogs[0];
+    const daysAgo = Math.max(0, Math.floor((now - lastLog.timestamp) / ONE_DAY_MS));
+
+    // 計算過去 7 天的總組數
+    const sevenDaysAgo = now - 7 * ONE_DAY_MS;
+    const recentSets = groupLogs.filter(h => h.timestamp >= sevenDaysAgo).length;
+
+    let recoveryPct = 100;
+    if (daysAgo === 0) {
+      recoveryPct = Math.max(15, 30 - recentSets * 2);
+    } else if (daysAgo === 1) {
+      recoveryPct = Math.min(65, 45 + (10 - recentSets) * 2);
+    } else if (daysAgo === 2) {
+      recoveryPct = Math.min(85, 75 + (10 - recentSets));
+    } else {
+      recoveryPct = 100;
+    }
+
+    let statusText = '完全充血恢復';
+    let color = 'text-hevy-green';
+    let bg = 'bg-hevy-green';
+
+    if (recoveryPct < 40) {
+      statusText = '疲勞修復中';
+      color = 'text-rose-400';
+      bg = 'bg-rose-500';
+    } else if (recoveryPct < 80) {
+      statusText = '恢復過渡中';
+      color = 'text-amber-400';
+      bg = 'bg-amber-500';
+    }
+
+    results[group] = {
+      pct: Math.round(recoveryPct),
+      daysAgo,
+      recentSets,
+      statusText,
+      color,
+      bg
+    };
   });
 
-  if (targetWeight <= barWeight) {
-    return steps;
-  }
-
-  // 輔助函式：四捨五入至最接近的 2.5kg (健身房常規跳階)
-  const round2_5 = (val) => Math.max(barWeight, Math.round(val / 2.5) * 2.5);
-
-  const netLoad = targetWeight - barWeight;
-
-  if (netLoad >= 15) {
-    // Step 2: 50% 啟動組
-    const w50 = round2_5(barWeight + netLoad * 0.45);
-    steps.push({
-      title: 'Set 2: 神經啟動',
-      weight: w50,
-      reps: '5 次',
-      intensity: '50% 工作重',
-      desc: '平穩推蹬，確保兩側平衡'
-    });
-  }
-
-  if (netLoad >= 30) {
-    // Step 3: 70% 力量過渡組
-    const w70 = round2_5(barWeight + netLoad * 0.70);
-    steps.push({
-      title: 'Set 3: 爆發衝動',
-      weight: w70,
-      reps: '3 次',
-      intensity: '70% 工作重',
-      desc: '發力快速，保留充足體力'
-    });
-  }
-
-  if (netLoad >= 50) {
-    // Step 4: 85% 神經適應組 (Potentiation)
-    const w85 = round2_5(barWeight + netLoad * 0.85);
-    steps.push({
-      title: 'Set 4: 重量適應',
-      weight: w85,
-      reps: '1~2 次',
-      intensity: '85% 工作重',
-      desc: '感受真實壓迫感，嚴禁力竭'
-    });
-  }
-
-  // Step 5: 目標正式組
-  steps.push({
-    title: 'Set 5: 正式工作組',
-    weight: targetWeight,
-    reps: '目標次數',
-    intensity: '100% 工作重',
-    desc: '深呼吸固定腹內壓，全力以赴！'
-  });
-
-  return steps;
+  return results;
 }
 
-// ======================= 5. RPE 與 e1RM 演算法 =======================
-
-/**
- * 依據重量、次數、RPE 計算估算 1RM (e1RM)
- * 優先使用 RTS 官方健力係數矩陣，若超出矩陣則結合 Epley 補間
- */
-function calculateE1RM(weight, reps, rpe) {
-  if (weight <= 0 || reps <= 0) return 0;
-  
-  // 1. 查表 RTS 百分比
-  const repKey = Math.min(Math.max(1, Math.round(reps)), 12);
-  const rpeKey = Math.min(Math.max(6, rpe), 10);
-
-  if (RTS_RPE_CHART[repKey] && RTS_RPE_CHART[repKey][rpeKey]) {
-    const percentage = RTS_RPE_CHART[repKey][rpeKey];
-    return Math.round((weight / percentage) * 10) / 10;
+// 取得某動作的歷史最佳 PR 與前次表現
+function getExerciseHistoryStats(exerciseId) {
+  const logs = state.history.filter(h => h.exerciseId === exerciseId);
+  if (logs.length === 0) {
+    return { lastSet: null, bestWeight: 0, bestE1rm: 0 };
   }
 
-  // 2. 超出表格範圍時，採用 Epley 公式加上保留次數 (RIR)
-  // RIR (Reps in Reserve) = 10 - rpe
-  const rir = Math.max(0, 10 - rpe);
-  const effectiveReps = reps + rir;
-  const e1rmEpley = weight * (1 + effectiveReps / 30);
-  return Math.round(e1rmEpley * 10) / 10;
+  // 排序找出最新一組
+  const sortedByTime = [...logs].sort((a, b) => b.timestamp - a.timestamp);
+  const lastSet = sortedByTime[0];
+
+  const bestWeight = Math.max(...logs.map(l => l.weight || 0));
+  const bestE1rm = Math.max(...logs.map(l => l.e1rm || 0));
+
+  return { lastSet, bestWeight, bestE1rm };
 }
 
-/**
- * 給定 e1RM，反推在指定次數與 RPE 下的建議訓練重量
- */
-function reverseWeightFrom1RM(e1rm, targetReps, targetRpe) {
-  if (e1rm <= 0) return 0;
-  const repKey = Math.min(Math.max(1, Math.round(targetReps)), 12);
-  const rpeKey = Math.min(Math.max(6, targetRpe), 10);
-
-  let percentage = 0.8;
-  if (RTS_RPE_CHART[repKey] && RTS_RPE_CHART[repKey][rpeKey]) {
-    percentage = RTS_RPE_CHART[repKey][rpeKey];
-  } else {
-    const rir = Math.max(0, 10 - targetRpe);
-    percentage = 1 / (1 + (targetReps + rir) / 30);
-  }
-
-  const weight = e1rm * percentage;
-  // 四捨五入至最接近 0.5kg
-  return Math.round(weight * 2) / 2;
-}
-
-// ======================= 6. 資料庫儲存與載入 =======================
-
+// ======================= 5. 資料持久化 =======================
 function loadLocalData() {
   try {
-    const storedExercises = localStorage.getItem(STORAGE_KEYS.EXERCISES);
-    state.exercises = storedExercises ? JSON.parse(storedExercises) : [...DEFAULT_EXERCISES];
+    const rawEx = localStorage.getItem(STORAGE_KEYS.EXERCISES);
+    state.exercises = rawEx ? JSON.parse(rawEx) : [...DEFAULT_EXERCISES];
 
-    const storedLogs = localStorage.getItem(STORAGE_KEYS.LOGS);
-    state.logs = storedLogs ? JSON.parse(storedLogs) : [...SEED_LOGS];
+    const rawHist = localStorage.getItem(STORAGE_KEYS.HISTORY);
+    state.history = rawHist ? JSON.parse(rawHist) : [...INITIAL_DEMO_HISTORY];
 
-    const storedSettings = localStorage.getItem(STORAGE_KEYS.SETTINGS);
-    if (storedSettings) {
-      state.settings = { ...state.settings, ...JSON.parse(storedSettings) };
+    const rawWorkout = localStorage.getItem(STORAGE_KEYS.ACTIVE_WORKOUT);
+    if (rawWorkout) {
+      state.activeWorkout = JSON.parse(rawWorkout);
+    }
+
+    const rawSettings = localStorage.getItem(STORAGE_KEYS.SETTINGS);
+    if (rawSettings) {
+      state.settings = { ...state.settings, ...JSON.parse(rawSettings) };
     }
   } catch (e) {
-    console.error('Failed to load local storage data:', e);
+    console.error('Storage load failed', e);
     state.exercises = [...DEFAULT_EXERCISES];
-    state.logs = [...SEED_LOGS];
+    state.history = [...INITIAL_DEMO_HISTORY];
   }
 }
 
 function saveLocalData() {
   try {
     localStorage.setItem(STORAGE_KEYS.EXERCISES, JSON.stringify(state.exercises));
-    localStorage.setItem(STORAGE_KEYS.LOGS, JSON.stringify(state.logs));
+    localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(state.history));
+    localStorage.setItem(STORAGE_KEYS.ACTIVE_WORKOUT, JSON.stringify(state.activeWorkout));
     localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(state.settings));
   } catch (e) {
-    console.error('Failed to save to local storage:', e);
+    console.error('Storage save failed', e);
   }
 }
 
-// ======================= 7. UI 渲染：槓片計算機 =======================
+// ======================= 6. UI 渲染：訓練工作表 (Workout Sheet) =======================
 
-function renderPlateCalculator() {
-  const targetWeight = parseFloat(document.getElementById('targetWeightInput').value) || 0;
-  const barWeight = state.settings.barWeight;
+function renderWorkoutSheet() {
+  const container = document.getElementById('workoutSheetsContainer');
+  const summaryBadge = document.getElementById('todaySummaryStats');
+  container.innerHTML = '';
 
-  const result = calculatePlates(targetWeight, barWeight);
-  const graphicContainer = document.getElementById('barbellGraphic');
-  const summaryContainer = document.getElementById('platesListSummary');
-  const sideWeightBadge = document.getElementById('sideWeightBadge');
-  const remainderWarning = document.getElementById('plateRemainderWarning');
-  const remainderText = document.getElementById('plateRemainderText');
+  let totalCompletedSets = 0;
+  let totalVolumeKg = 0;
 
-  sideWeightBadge.textContent = `單邊 ${result.sideWeight} kg`;
+  // 渲染頂部肌群恢復快速走馬燈膠囊
+  renderQuickRecoveryCapsules();
 
-  // 繪製槓片切面視覺圖
-  graphicContainer.innerHTML = '';
-
-  if (!result.isValid) {
-    remainderWarning.classList.remove('hidden');
-    remainderText.textContent = result.error;
-    summaryContainer.innerHTML = `<span class="text-xs text-rose-400 font-mono">請將總重量設定高於空槓 (${barWeight}kg)</span>`;
+  if (state.activeWorkout.exercises.length === 0) {
+    container.innerHTML = `
+      <div class="text-center py-12 bg-iron-900 border border-iron-800 rounded-2xl p-6 space-y-3">
+        <i data-lucide="dumbbell" class="w-8 h-8 text-slate-500 mx-auto"></i>
+        <h3 class="font-bold text-slate-300 text-sm">今日課表尚無動作</h3>
+        <p class="text-xs text-slate-500">點擊下方「＋ 新增動作」開始今日高強度訓練！</p>
+      </div>
+    `;
+    summaryBadge.textContent = '0 組 • 0 kg 容量';
+    if (window.lucide) lucide.createIcons();
     return;
   }
 
-  if (result.remainder > 0) {
-    remainderWarning.classList.remove('hidden');
-    remainderText.textContent = `提醒：單側有 ${result.remainder} kg 無法被標準片整除，請依現場微量片配平。`;
-  } else {
-    remainderWarning.classList.add('hidden');
-  }
+  state.activeWorkout.exercises.forEach((item, exIndex) => {
+    const exObj = state.exercises.find(e => e.id === item.exerciseId) || { name: '未知動作', category: '全身' };
+    const stats = getExerciseHistoryStats(item.exerciseId);
 
-  // 槓鈴桿本體切面 (Sleeve)
-  const barbellBar = document.createElement('div');
-  barbellBar.className = 'absolute left-0 right-0 h-4 bg-gradient-to-b from-slate-400 via-slate-200 to-slate-500 rounded-sm z-0 top-1/2 -translate-y-1/2';
-  graphicContainer.appendChild(barbellBar);
-
-  // 內側擋圈 (Inner Collar)
-  const innerCollar = document.createElement('div');
-  innerCollar.className = 'w-3 h-16 bg-gradient-to-r from-amber-600 to-amber-500 rounded-sm z-10 mr-1.5 shadow-md flex-shrink-0';
-  innerCollar.title = '內側擋圈 (Collar)';
-  graphicContainer.appendChild(innerCollar);
-
-  // 渲染所有掛載的片 (由內至外)
-  if (result.plates.length === 0) {
-    const emptyLabel = document.createElement('div');
-    emptyLabel.className = 'z-10 ml-4 text-xs font-mono text-slate-400 italic';
-    emptyLabel.textContent = '(空槓，無需掛片)';
-    graphicContainer.appendChild(emptyLabel);
-    summaryContainer.innerHTML = `<span class="text-xs font-mono text-slate-400">目前為空槓 (${barWeight} kg)，兩側無需掛片</span>`;
-  } else {
-    summaryContainer.innerHTML = '';
-    result.plates.forEach(p => {
-      // 繪製圖形
-      for (let i = 0; i < p.count; i++) {
-        const plateEl = document.createElement('div');
-        plateEl.className = `${p.width} ${p.height} ${p.border} rounded-md z-10 mr-1 flex items-center justify-center font-black text-[9px] shadow-lg transition-transform hover:scale-105 flex-shrink-0`;
-        plateEl.style.backgroundColor = p.color;
-        plateEl.style.color = p.textColor;
-        plateEl.style.borderWidth = '1px';
-        plateEl.textContent = p.label;
-        graphicContainer.appendChild(plateEl);
-      }
-
-      // 文字標籤
-      const tag = document.createElement('div');
-      tag.className = 'px-2.5 py-1 rounded-lg text-xs font-bold font-mono flex items-center gap-1 border shadow-sm';
-      tag.style.backgroundColor = `${p.color}20`;
-      tag.style.borderColor = `${p.color}60`;
-      tag.style.color = p.color === '#f8fafc' ? '#e2e8f0' : p.color;
-      tag.innerHTML = `<span>${p.weight} kg</span> <span class="text-white text-[10px] bg-iron-800 px-1.5 py-0.2 rounded">× ${p.count}</span>`;
-      summaryContainer.appendChild(tag);
-    });
-
-    // 最外層夾簧扣環 (Clip / Collar clamp)
-    const outerClip = document.createElement('div');
-    outerClip.className = 'w-3 h-8 bg-slate-300 border border-slate-400 rounded-sm z-10 ml-0.5 shadow flex-shrink-0';
-    outerClip.title = '槓鈴安全夾 (Collar Clip)';
-    graphicContainer.appendChild(outerClip);
-  }
-
-  // 渲染熱身排程
-  renderWarmupSchedule(targetWeight, barWeight);
-}
-
-function renderWarmupSchedule(targetWeight, barWeight) {
-  const container = document.getElementById('warmupListContainer');
-  const warmupSteps = generateWarmupProtocol(targetWeight, barWeight);
-
-  container.innerHTML = '';
-  warmupSteps.forEach((step, idx) => {
-    const card = document.createElement('div');
-    card.className = 'p-2.5 rounded-xl bg-iron-950/80 border border-iron-800 flex items-center justify-between text-xs hover:border-iron-700 transition';
-
-    // 計算該熱身組槓片
-    const plateCalc = calculatePlates(step.weight, barWeight);
-    let plateSummaryText = '空槓';
-    if (plateCalc.plates.length > 0) {
-      plateSummaryText = plateCalc.plates.map(p => `${p.weight}k×${p.count}`).join(' + ');
+    // 計算該動作超負荷建議
+    let overloadTipText = '建立基準數據';
+    if (stats.lastSet) {
+      overloadTipText = `上次 ${stats.lastSet.weight}kg × ${stats.lastSet.reps} ➔ 建議突破：${stats.lastSet.weight + 2.5}kg 或 ${stats.lastSet.reps + 1}次`;
     }
 
+    const card = document.createElement('div');
+    card.className = 'bg-iron-900 border border-iron-800 rounded-2xl p-4 shadow-xl space-y-3';
+
+    // 卡片標頭：動作名稱 + 快捷按鈕 (槓片、替換、刪除)
     card.innerHTML = `
-      <div class="space-y-0.5">
-        <div class="flex items-center gap-2">
-          <span class="font-bold text-slate-200">${step.title}</span>
-          <span class="text-[10px] px-1.5 py-0.2 rounded bg-iron-800 text-amber-400 font-mono">${step.intensity}</span>
+      <div class="flex items-start justify-between">
+        <div>
+          <div class="flex items-center gap-2">
+            <h3 class="font-black text-white text-base tracking-tight">${exObj.name}</h3>
+            <span class="text-[10px] font-bold px-1.5 py-0.2 rounded bg-iron-800 text-slate-300">${exObj.category}</span>
+          </div>
+          <div class="text-[11px] text-hevy-green font-semibold mt-0.5 flex items-center gap-1">
+            <i data-lucide="zap" class="w-3 h-3"></i>
+            <span>${overloadTipText}</span>
+          </div>
         </div>
-        <div class="text-[11px] text-slate-400">
-          <span>單邊：<strong class="text-amber-400 font-mono">${plateSummaryText}</strong></span>
-          <span class="mx-1">•</span>
-          <span>${step.desc}</span>
+
+        <div class="flex items-center gap-1">
+          <button data-action="plate" data-ex-index="${exIndex}" class="p-1.5 rounded-lg bg-iron-800 hover:bg-iron-750 text-slate-300 hover:text-hevy-amber text-xs flex items-center gap-1" title="槓片計算與熱身">
+            <i data-lucide="disc" class="w-3.5 h-3.5 text-hevy-amber"></i>
+            <span class="text-[10px] font-bold font-mono">槓片</span>
+          </button>
+          <button data-action="swap" data-ex-id="${item.exerciseId}" data-ex-index="${exIndex}" class="p-1.5 rounded-lg bg-iron-800 hover:bg-iron-750 text-slate-300 hover:text-hevy-blue text-xs flex items-center gap-1" title="替代動作">
+            <i data-lucide="arrow-left-right" class="w-3.5 h-3.5 text-hevy-blue"></i>
+          </button>
+          <button data-action="remove-ex" data-ex-index="${exIndex}" class="p-1.5 rounded-lg bg-iron-800 hover:bg-rose-900/40 text-slate-500 hover:text-rose-400 text-xs" title="移除動作">
+            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+          </button>
         </div>
       </div>
-      <div class="text-right shrink-0 ml-3">
-        <div class="font-mono font-black text-sm text-white">${step.weight} <span class="text-[10px] text-slate-400">kg</span></div>
-        <div class="font-mono text-amber-400 font-semibold text-[11px]">${step.reps}</div>
+
+      <!-- Hevy 經典表格清單 (Workout Sheet) -->
+      <div class="space-y-1.5">
+        <div class="grid grid-cols-12 text-[10px] font-bold font-mono text-slate-400 px-2 py-1">
+          <span class="col-span-2">組別</span>
+          <span class="col-span-3">前次表現</span>
+          <span class="col-span-3 text-center">公斤 (KG)</span>
+          <span class="col-span-2 text-center">次數</span>
+          <span class="col-span-2 text-center">完成</span>
+        </div>
+
+        <div class="space-y-1" id="setsContainer-${exIndex}">
+          <!-- 組別行 -->
+        </div>
+
+        <!-- 新增組數按鈕 -->
+        <button data-action="add-set" data-ex-index="${exIndex}" class="w-full py-2 rounded-xl bg-iron-850 hover:bg-iron-800 border border-dashed border-iron-750 text-xs font-bold text-slate-400 hover:text-white flex items-center justify-center gap-1 mt-1 transition">
+          <i data-lucide="plus" class="w-3.5 h-3.5"></i> 新增一組
+        </button>
       </div>
     `;
-
-    // 點擊卡片可快速代入目標重量
-    card.addEventListener('click', () => {
-      document.getElementById('targetWeightInput').value = step.weight;
-      renderPlateCalculator();
-      feedback.vibrate(25);
-    });
 
     container.appendChild(card);
-  });
-}
 
-// ======================= 8. UI 渲染：訓練日誌與漸進超負荷 =======================
+    // 渲染該動作的所有組數行
+    const setsBox = card.querySelector(`#setsContainer-${exIndex}`);
+    item.sets.forEach((set, setIndex) => {
+      if (set.isCompleted) {
+        totalCompletedSets++;
+        totalVolumeKg += (set.weight * set.reps);
+      }
 
-function populateExerciseSelect() {
-  const select = document.getElementById('exerciseSelect');
-  const currentVal = select.value;
-  select.innerHTML = '';
+      const row = document.createElement('div');
+      const isDone = set.isCompleted;
 
-  // 依肌群分類
-  const categories = {};
-  state.exercises.forEach(ex => {
-    if (!categories[ex.category]) categories[ex.category] = [];
-    categories[ex.category].push(ex);
-  });
+      // 類型標籤 (W: 熱身, 數字: 正式組, D: 遞減, F: 力竭)
+      let setTypeBadge = `${setIndex + 1}`;
+      let setTypeClass = 'bg-iron-800 text-slate-300';
+      if (set.setType === 'warmup') {
+        setTypeBadge = 'W';
+        setTypeClass = 'bg-amber-500/20 text-amber-400';
+      } else if (set.setType === 'drop') {
+        setTypeBadge = 'D';
+        setTypeClass = 'bg-purple-500/20 text-purple-400';
+      } else if (set.setType === 'failure') {
+        setTypeBadge = 'F';
+        setTypeClass = 'bg-rose-500/20 text-rose-400';
+      }
 
-  for (const [catName, list] of Object.entries(categories)) {
-    const optGroup = document.createElement('optgroup');
-    optGroup.label = `── ${catName} ──`;
-    list.forEach(ex => {
-      const opt = document.createElement('option');
-      opt.value = ex.id;
-      opt.textContent = ex.name;
-      optGroup.appendChild(opt);
+      row.className = `grid grid-cols-12 items-center gap-1 p-1.5 rounded-xl transition ${isDone ? 'bg-iron-950/40 text-slate-500' : 'bg-iron-950/90 text-white'}`;
+      
+      const prevText = stats.lastSet ? `${stats.lastSet.weight}k×${stats.lastSet.reps}` : '—';
+
+      row.innerHTML = `
+        <!-- 組別標籤 (點擊可切換 熱身/正式) -->
+        <div class="col-span-2 flex items-center">
+          <button data-action="toggle-set-type" data-ex-index="${exIndex}" data-set-index="${setIndex}" class="w-7 h-7 rounded-lg text-xs font-mono font-bold flex items-center justify-center ${setTypeClass} tap-active" title="點擊切換熱身/正式組">
+            ${setTypeBadge}
+          </button>
+        </div>
+
+        <!-- 前次表現紀錄 -->
+        <div class="col-span-3 text-[11px] font-mono text-slate-500 truncate">
+          ${prevText}
+        </div>
+
+        <!-- 重量輸入框 -->
+        <div class="col-span-3">
+          <input type="number" step="0.5" value="${set.weight}" data-field="weight" data-ex-index="${exIndex}" data-set-index="${setIndex}"
+            class="w-full bg-iron-900 border border-iron-750 focus:border-hevy-green text-center text-sm font-mono font-black py-1.5 rounded-lg text-white ${isDone ? 'opacity-60' : ''}" inputmode="decimal">
+        </div>
+
+        <!-- 次數輸入框 -->
+        <div class="col-span-2">
+          <input type="number" step="1" value="${set.reps}" data-field="reps" data-ex-index="${exIndex}" data-set-index="${setIndex}"
+            class="w-full bg-iron-900 border border-iron-750 focus:border-hevy-green text-center text-sm font-mono font-bold py-1.5 rounded-lg text-white ${isDone ? 'opacity-60' : ''}" inputmode="numeric">
+        </div>
+
+        <!-- 完成打勾按鈕 (Hevy 招牌 Checkmark) -->
+        <div class="col-span-2 flex justify-center">
+          <button data-action="toggle-complete" data-ex-index="${exIndex}" data-set-index="${setIndex}"
+            class="w-8 h-8 rounded-xl font-bold flex items-center justify-center transition tap-active ${isDone ? 'bg-hevy-green text-iron-950 shadow-md shadow-hevy-green/30 check-pop' : 'bg-iron-800 border border-iron-700 text-slate-500 hover:text-slate-300'}">
+            <i data-lucide="check" class="w-4 h-4 stroke-[3]"></i>
+          </button>
+        </div>
+      `;
+
+      setsBox.appendChild(row);
     });
-    select.appendChild(optGroup);
-  }
-
-  if (currentVal && state.exercises.some(e => e.id === currentVal)) {
-    select.value = currentVal;
-  }
-}
-
-function updateExerciseStatsAndTips() {
-  const selectedExId = document.getElementById('exerciseSelect').value;
-  const exLogs = state.logs
-    .filter(l => l.exerciseId === selectedExId)
-    .sort((a, b) => b.timestamp - a.timestamp);
-
-  const lastDateEl = document.getElementById('lastPerfDate');
-  const lastDetailsEl = document.getElementById('lastPerfDetails');
-  const tipTextEl = document.getElementById('overloadTipText');
-
-  if (exLogs.length === 0) {
-    lastDateEl.textContent = '暫無紀錄';
-    lastDetailsEl.textContent = '此動作尚無歷史組數，完成今日第一組以建立超負荷基準！';
-    tipTextEl.textContent = '建議選擇能標準完成 8~10 下的重量，建立第一組基礎標竿。';
-    return;
-  }
-
-  // 最近一次訓練日期
-  const lastLog = exLogs[0];
-  const lastSessionDate = lastLog.date;
-  const lastSessionLogs = exLogs.filter(l => l.date === lastSessionDate && l.setType === 'working');
-  const workingSets = lastSessionLogs.length > 0 ? lastSessionLogs : exLogs.filter(l => l.date === lastSessionDate);
-
-  // 找出該次最佳組
-  const bestSetOfSession = workingSets.reduce((max, cur) => cur.weight > max.weight ? cur : max, workingSets[0]);
-
-  lastDateEl.textContent = `上次訓練：${lastSessionDate}`;
-  lastDetailsEl.innerHTML = `
-    <div class="flex items-center gap-2">
-      <span class="text-amber-400 font-mono font-black text-base">${bestSetOfSession.weight} kg</span>
-      <span class="text-slate-300">×</span>
-      <span class="text-white font-mono font-bold">${bestSetOfSession.reps} 下</span>
-      <span class="text-xs font-mono text-slate-400">@ RPE ${bestSetOfSession.rpe}</span>
-      <span class="text-[11px] text-slate-500 font-mono">(e1RM: ${bestSetOfSession.e1rm}kg)</span>
-    </div>
-  `;
-
-  // 智慧漸進超負荷教練建議
-  const targetWeightOverload = bestSetOfSession.weight + 2.5;
-  const targetRepsOverload = bestSetOfSession.reps + 1;
-
-  tipTextEl.innerHTML = `
-    今日突破重點：試試 <span class="font-mono font-bold text-amber-400">${targetWeightOverload} kg × ${bestSetOfSession.reps} 次</span>（重量超負荷）或維持 <span class="font-mono font-bold text-amber-400">${bestSetOfSession.weight} kg × ${targetRepsOverload} 次</span>（次數超負荷）！
-  `;
-
-  // 自動將輸入框預設為上次組數的重量與次數
-  document.getElementById('logWeightInput').value = bestSetOfSession.weight;
-  document.getElementById('logRepsInput').value = bestSetOfSession.reps;
-}
-
-function renderTodaySets() {
-  const container = document.getElementById('todaySetsList');
-  const totalVolumeBadge = document.getElementById('todayTotalVolumeBadge');
-  const todayStr = new Date().toISOString().split('T')[0];
-
-  const todayLogs = state.logs.filter(l => l.date === todayStr);
-
-  // 計算今日總容量 Volume Load (Weight * Reps)
-  const totalVolume = todayLogs.reduce((acc, l) => acc + (l.weight * l.reps), 0);
-  totalVolumeBadge.textContent = `${totalVolume.toLocaleString()} kg 容量`;
-
-  if (todayLogs.length === 0) {
-    container.innerHTML = `
-      <div class="text-center py-6 text-slate-500 text-xs">
-        今天尚未記錄任何組數，點擊上方按鈕開始記錄！
-      </div>
-    `;
-    document.getElementById('currentSetNumLabel').textContent = 'Set 1';
-    return;
-  }
-
-  // 更新當前 Set 標籤
-  const currentExId = document.getElementById('exerciseSelect').value;
-  const currentExTodayCount = todayLogs.filter(l => l.exerciseId === currentExId).length;
-  document.getElementById('currentSetNumLabel').textContent = `Set ${currentExTodayCount + 1}`;
-
-  container.innerHTML = '';
-  // 最新的排在前面
-  todayLogs.slice().reverse().forEach((log) => {
-    const item = document.createElement('div');
-    item.className = 'p-3 rounded-xl bg-iron-950 border border-iron-800 flex items-center justify-between text-xs';
-
-    const setTypeTag = {
-      working: '<span class="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 font-bold text-[10px]">正式組</span>',
-      warmup: '<span class="px-1.5 py-0.5 rounded bg-slate-700 text-slate-300 font-bold text-[10px]">熱身組</span>',
-      failure: '<span class="px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-400 font-bold text-[10px]">力竭</span>',
-      drop: '<span class="px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 font-bold text-[10px]">遞減</span>'
-    }[log.setType] || '';
-
-    item.innerHTML = `
-      <div class="space-y-1">
-        <div class="flex items-center gap-2">
-          <strong class="text-white text-sm">${log.exerciseName}</strong>
-          ${setTypeTag}
-        </div>
-        <div class="flex items-center gap-3 text-slate-400 font-mono text-[11px]">
-          <span class="text-amber-400 font-bold text-xs">${log.weight} kg × ${log.reps} 次</span>
-          <span>@ RPE ${log.rpe}</span>
-          <span>e1RM: ${log.e1rm}kg</span>
-        </div>
-      </div>
-      <button data-delete-id="${log.id}" class="delete-log-btn text-slate-500 hover:text-rose-400 p-2 rounded-lg" title="刪除此紀錄">
-        <i data-lucide="trash-2" class="w-4 h-4"></i>
-      </button>
-    `;
-
-    container.appendChild(item);
   });
 
+  summaryBadge.textContent = `${totalCompletedSets} 組完成 • ${totalVolumeKg.toLocaleString()} kg 容量`;
   if (window.lucide) lucide.createIcons();
 }
 
-// 檢查是否創下歷史 PR
-function checkForPR(exerciseId, newE1rm, newWeight) {
-  const previousLogs = state.logs.filter(l => l.exerciseId === exerciseId);
-  if (previousLogs.length <= 1) return false; // 初始基準
+// 快速肌群恢復走馬燈膠囊
+function renderQuickRecoveryCapsules() {
+  const container = document.getElementById('quickRecoveryScroll');
+  const recoveryMap = calculateMuscleRecovery();
+  container.innerHTML = '';
 
-  const maxPrevE1rm = Math.max(...previousLogs.slice(1).map(l => l.e1rm || 0));
-  const maxPrevWeight = Math.max(...previousLogs.slice(1).map(l => l.weight || 0));
-
-  return newE1rm > maxPrevE1rm || newWeight > maxPrevWeight;
+  for (const [groupName, rec] of Object.entries(recoveryMap)) {
+    const pill = document.createElement('div');
+    pill.className = 'flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-iron-900 border border-iron-800 text-[11px] shrink-0 font-medium cursor-pointer tap-active';
+    pill.innerHTML = `
+      <span class="w-2 h-2 rounded-full ${rec.bg}"></span>
+      <span class="text-slate-300">${groupName}</span>
+      <span class="font-mono font-bold ${rec.color}">${rec.pct}%</span>
+    `;
+    pill.addEventListener('click', () => switchNavTab('tab-recovery'));
+    container.appendChild(pill);
+  }
 }
 
-// ======================= 9. UI 渲染：RPE 與 e1RM 換算器 =======================
+// ======================= 7. UI 渲染：進步數據與 Chart.js 分析 =======================
 
-function renderRpeCalculator() {
-  const weight = parseFloat(document.getElementById('calcWeightInput').value) || 0;
-  const reps = parseInt(document.getElementById('calcRepsInput').value) || 1;
-  const rpe = parseFloat(document.getElementById('calcRpeSelect').value) || 10;
+function renderAnalyticsView() {
+  // 1. 核心三項指標
+  const totalVolume = state.history.reduce((sum, h) => sum + (h.weight * h.reps), 0);
+  const totalSets = state.history.length;
+  document.getElementById('statTotalVolume').textContent = (totalVolume >= 1000 ? (totalVolume / 1000).toFixed(1) + 'k' : totalVolume);
+  document.getElementById('statTotalSets').textContent = totalSets;
 
-  const e1rm = calculateE1RM(weight, reps, rpe);
-  document.getElementById('calculated1RMDisplay').textContent = e1rm.toFixed(1);
+  // 計算歷史 PR 數量
+  const prMap = {};
+  state.history.forEach(h => {
+    if (!prMap[h.exerciseId] || h.e1rm > prMap[h.exerciseId].e1rm) {
+      prMap[h.exerciseId] = h;
+    }
+  });
+  document.getElementById('statTotalPRs').textContent = Object.keys(prMap).length;
 
-  // 反推
-  const targetReps = parseInt(document.getElementById('targetRepsReverseSelect').value) || 3;
-  const targetRpe = parseFloat(document.getElementById('targetRpeReverseSelect').value) || 8;
-  const targetWeight = reverseWeightFrom1RM(e1rm, targetReps, targetRpe);
-  document.getElementById('reverseWeightResult').textContent = targetWeight.toFixed(1);
+  // 2. 填入折線圖動作下拉選單
+  const select = document.getElementById('analyticsExerciseFilter');
+  const currentVal = select.value;
+  select.innerHTML = '';
 
-  // 生成 RM 對照表 (1RM ~ 10RM 及 90%, 80%, 70%)
-  const tableBody = document.getElementById('rmTableBody');
-  tableBody.innerHTML = '';
+  const availableExIds = [...new Set(state.history.map(h => h.exerciseId))];
+  availableExIds.forEach(id => {
+    const ex = state.exercises.find(e => e.id === id);
+    if (ex) {
+      const opt = document.createElement('option');
+      opt.value = id;
+      opt.textContent = ex.name;
+      select.appendChild(opt);
+    }
+  });
 
-  const rmPresets = [
-    { label: '1RM', pct: 1.00, reps: 1, goal: '最大神經肌力極限' },
-    { label: '3RM', pct: 0.92, reps: 3, goal: '高強度力量突破' },
-    { label: '5RM', pct: 0.86, reps: 5, goal: '力量底層基礎 (經典5x5)' },
-    { label: '8RM', pct: 0.77, reps: 8, goal: '肌肥大與肌力並重' },
-    { label: '10RM', pct: 0.71, reps: 10, goal: '肌肥大肌耐力區間' },
-    { label: '12RM', pct: 0.65, reps: 12, goal: '肌耐力與代謝壓力' }
-  ];
+  if (currentVal && availableExIds.includes(currentVal)) {
+    select.value = currentVal;
+  } else if (availableExIds.length > 0) {
+    select.value = availableExIds[0];
+  }
 
-  rmPresets.forEach(row => {
-    const recWeight = Math.round((e1rm * row.pct) * 2) / 2;
-    const tr = document.createElement('tr');
-    tr.className = 'hover:bg-iron-850/50';
-    tr.innerHTML = `
-      <td class="py-2 px-1 text-white font-bold">${row.label}</td>
-      <td class="py-2 px-1 text-slate-400">${Math.round(row.pct * 100)}%</td>
-      <td class="py-2 px-1 text-amber-400 font-bold">${recWeight} kg</td>
-      <td class="py-2 px-1 text-slate-400 text-[11px]">${row.goal}</td>
-    `;
-    tableBody.appendChild(tr);
+  // 3. 繪製估算 1RM 進步折線圖
+  renderStrengthLineChart(select.value);
+
+  // 4. 繪製各肌群組數分佈長條圖
+  renderMuscleVolumeBarChart();
+
+  // 5. 繪製 PR 榮譽牆
+  renderPrGrid(prMap);
+}
+
+function renderStrengthLineChart(exerciseId) {
+  const ctx = document.getElementById('strengthProgressChart');
+  if (!ctx || !window.Chart) return;
+
+  const logs = state.history
+    .filter(h => h.exerciseId === exerciseId)
+    .sort((a, b) => a.timestamp - b.timestamp);
+
+  const labels = logs.map(l => l.date ? l.date.slice(5) : '');
+  const dataPoints = logs.map(l => l.e1rm || calculateE1RM(l.weight, l.reps, l.rpe));
+
+  if (state.charts.strength) {
+    state.charts.strength.destroy();
+  }
+
+  state.charts.strength = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels.length > 0 ? labels : ['無資料'],
+      datasets: [{
+        label: '估算 1RM (kg)',
+        data: dataPoints.length > 0 ? dataPoints : [0],
+        borderColor: '#10b981',
+        backgroundColor: 'rgba(16, 185, 129, 0.12)',
+        borderWidth: 2.5,
+        fill: true,
+        tension: 0.35,
+        pointBackgroundColor: '#10b981',
+        pointRadius: 4
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false }
+      },
+      scales: {
+        x: {
+          grid: { color: '#1a2236' },
+          ticks: { color: '#64748b', font: { size: 10 } }
+        },
+        y: {
+          grid: { color: '#1a2236' },
+          ticks: { color: '#64748b', font: { size: 10 } }
+        }
+      }
+    }
   });
 }
 
-// ======================= 10. UI 渲染：歷史與個人 PR 榮譽榜 =======================
+function renderMuscleVolumeBarChart() {
+  const ctx = document.getElementById('muscleVolumeChart');
+  if (!ctx || !window.Chart) return;
 
-function renderHistoryAndPRs() {
-  const container = document.getElementById('prListContainer');
+  const muscleGroups = ['胸部', '背部', '腿部', '肩部', '手臂'];
+  const recoveryMap = calculateMuscleRecovery();
+  const counts = muscleGroups.map(g => {
+    const key = g === '手臂' ? '手臂/核心' : g;
+    return recoveryMap[key] ? recoveryMap[key].recentSets : 0;
+  });
+
+  if (state.charts.muscle) {
+    state.charts.muscle.destroy();
+  }
+
+  state.charts.muscle = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: muscleGroups,
+      datasets: [{
+        label: '近7天完成組數',
+        data: counts,
+        backgroundColor: ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#06b6d4'],
+        borderRadius: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false }
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: { color: '#94a3b8', font: { size: 11, weight: 'bold' } }
+        },
+        y: {
+          grid: { color: '#1a2236' },
+          ticks: { color: '#64748b', font: { size: 10 }, stepSize: 2 }
+        }
+      }
+    }
+  });
+}
+
+function renderPrGrid(prMap) {
+  const container = document.getElementById('analyticsPrGrid');
   container.innerHTML = '';
 
-  // 遍歷所有動作計算最佳 PR
-  state.exercises.forEach(ex => {
-    const exLogs = state.logs.filter(l => l.exerciseId === ex.id);
-    if (exLogs.length === 0) return;
+  const entries = Object.entries(prMap);
+  if (entries.length === 0) {
+    container.innerHTML = `<div class="col-span-2 text-center text-xs text-slate-500 py-4">尚無 PR 紀錄，完成組數以建立數據！</div>`;
+    return;
+  }
 
-    let bestWeight = 0;
-    let bestE1rm = 0;
-    let bestReps = 0;
-
-    exLogs.forEach(l => {
-      if (l.weight > bestWeight) bestWeight = l.weight;
-      if (l.e1rm > bestE1rm) {
-        bestE1rm = l.e1rm;
-        bestReps = l.reps;
-      }
-    });
-
+  entries.forEach(([exId, log]) => {
     const card = document.createElement('div');
     card.className = 'bg-iron-950 border border-iron-800 rounded-xl p-3 space-y-1';
     card.innerHTML = `
-      <div class="text-[11px] font-bold text-slate-300 truncate" title="${ex.name}">${ex.name}</div>
+      <div class="text-[11px] font-bold text-slate-300 truncate">${log.exerciseName}</div>
       <div class="flex items-baseline justify-between pt-1">
-        <span class="text-xs text-slate-500 font-mono">e1RM</span>
-        <span class="text-base font-mono font-black text-amber-400">${bestE1rm} <span class="text-[10px] text-slate-400">kg</span></span>
+        <span class="text-[10px] text-slate-500 font-mono">e1RM</span>
+        <span class="text-base font-mono font-black text-hevy-green">${log.e1rm} <span class="text-[10px] text-slate-400">kg</span></span>
       </div>
       <div class="flex items-baseline justify-between text-[11px] text-slate-400 font-mono">
         <span>最大負重</span>
-        <span class="text-slate-200 font-bold">${bestWeight} kg</span>
+        <span class="text-white font-bold">${log.weight} kg × ${log.reps}</span>
       </div>
     `;
     container.appendChild(card);
   });
+}
 
-  if (container.children.length === 0) {
-    container.innerHTML = `<div class="col-span-2 text-center py-4 text-xs text-slate-500">尚無 PR 紀錄，開始訓練並記錄吧！</div>`;
+// ======================= 8. UI 渲染：肌群恢復儀表板 (Fitbod Recovery) =======================
+
+function renderRecoveryView() {
+  const container = document.getElementById('muscleRecoveryCardsContainer');
+  const recoBox = document.getElementById('recommendationText');
+  container.innerHTML = '';
+
+  const recoveryMap = calculateMuscleRecovery();
+
+  // 智慧判斷今日最推薦練什麼
+  const sortedMuscles = Object.entries(recoveryMap).sort((a, b) => b[1].pct - a[1].pct);
+  const bestToTrain = sortedMuscles.filter(([_, rec]) => rec.pct >= 85).map(([name]) => name);
+
+  if (bestToTrain.length > 0) {
+    recoBox.innerHTML = `今日最佳就緒：<strong class="text-hevy-green">${bestToTrain.slice(0, 2).join(' & ')}</strong> 已完全充血恢復，推薦今日安排為主訓部位！`;
+  } else {
+    recoBox.innerHTML = `各大主要肌群均在修復重建中，建議今日進行輕度活動度伸展或有氧主動恢復。`;
+  }
+
+  for (const [groupName, rec] of Object.entries(recoveryMap)) {
+    const card = document.createElement('div');
+    card.className = 'bg-iron-900 border border-iron-800 rounded-xl p-3.5 space-y-2';
+
+    const daysText = rec.daysAgo === null ? '從未訓練' : (rec.daysAgo === 0 ? '今天訓練過' : `${rec.daysAgo} 天前訓練`);
+
+    card.innerHTML = `
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="font-extrabold text-sm text-white">${groupName}</span>
+          <span class="text-[10px] px-2 py-0.5 rounded-full bg-iron-800 font-mono text-slate-400">${daysText}</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="text-xs font-mono font-bold ${rec.color}">${rec.statusText}</span>
+          <span class="text-xs font-mono font-black text-white">${rec.pct}%</span>
+        </div>
+      </div>
+
+      <!-- 進度條 -->
+      <div class="w-full bg-iron-950 rounded-full h-2 overflow-hidden">
+        <div class="h-full rounded-full ${rec.bg} transition-all duration-500" style="width: ${rec.pct}%"></div>
+      </div>
+
+      <div class="flex justify-between text-[11px] text-slate-400 font-mono">
+        <span>近 7 天累積組數：${rec.recentSets} Sets</span>
+        <button data-action="quick-add-group" data-group="${groupName}" class="text-hevy-green hover:underline text-[11px] font-bold">
+          ＋ 加入此肌群動作
+        </button>
+      </div>
+    `;
+
+    container.appendChild(card);
   }
 }
 
-// ======================= 11. 常駐組間休息計時器邏輯 =======================
+// ======================= 9. 抽屜模態操作 (槓片、替代動作、新增動作) =======================
 
+// 展開槓片速算抽屜
+function openPlateSheet(weight, targetSetRef = null) {
+  state.currentPlateTarget.weight = weight;
+  state.currentPlateTarget.originSetRef = targetSetRef;
+
+  const modal = document.getElementById('plateSheetModal');
+  const input = document.getElementById('sheetWeightInput');
+  input.value = weight;
+  renderPlateSheetGraphic();
+  modal.classList.remove('hidden');
+}
+
+function renderPlateSheetGraphic() {
+  const weight = parseFloat(document.getElementById('sheetWeightInput').value) || 0;
+  const barWeight = state.settings.barWeight;
+  const result = calculatePlates(weight, barWeight);
+
+  document.getElementById('sheetTargetWeightLabel').textContent = `目標重量：${weight} kg (空槓 ${barWeight} kg)`;
+  document.getElementById('sheetSideWeightBadge').textContent = `單邊 ${result.sideWeight} kg`;
+
+  const graphic = document.getElementById('sheetBarbellGraphic');
+  const summary = document.getElementById('sheetPlatesTextSummary');
+  const warmupBox = document.getElementById('sheetWarmupStepsContainer');
+
+  graphic.innerHTML = '';
+  summary.innerHTML = '';
+  warmupBox.innerHTML = '';
+
+  if (!result.isValid) {
+    summary.innerHTML = `<span class="text-xs text-rose-400">總重量低於空槓重 (${barWeight}kg)</span>`;
+    return;
+  }
+
+  // 繪製槓心
+  const bar = document.createElement('div');
+  bar.className = 'absolute left-0 right-0 h-3 bg-gradient-to-b from-slate-300 via-slate-100 to-slate-400 rounded-sm z-0 top-1/2 -translate-y-1/2';
+  graphic.appendChild(bar);
+
+  // 擋圈
+  const collar = document.createElement('div');
+  collar.className = 'w-2.5 h-14 bg-gradient-to-r from-amber-600 to-amber-500 rounded-sm z-10 mr-1.5 shrink-0';
+  graphic.appendChild(collar);
+
+  if (result.plates.length === 0) {
+    summary.innerHTML = `<span class="text-xs font-mono text-slate-400">目前為空槓，無需掛片</span>`;
+  } else {
+    result.plates.forEach(p => {
+      for (let i = 0; i < p.count; i++) {
+        const plateEl = document.createElement('div');
+        plateEl.className = `${p.width} ${p.height} ${p.border} rounded-sm z-10 mr-1 flex items-center justify-center font-black text-[9px] shadow shrink-0`;
+        plateEl.style.backgroundColor = p.color;
+        plateEl.style.color = p.textColor;
+        plateEl.textContent = p.label;
+        graphic.appendChild(plateEl);
+      }
+
+      const tag = document.createElement('span');
+      tag.className = 'px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-iron-850 border border-iron-700 text-slate-200';
+      tag.textContent = `${p.weight}k × ${p.count}`;
+      summary.appendChild(tag);
+    });
+
+    // 夾簧
+    const clip = document.createElement('div');
+    clip.className = 'w-2 h-7 bg-slate-300 rounded-sm z-10 ml-0.5 shrink-0';
+    graphic.appendChild(clip);
+  }
+
+  // 渲染科學熱身排程 (空槓, 50%, 70%, 85%)
+  const warmupPresets = [
+    { name: 'Set 1: 空槓活動度', w: barWeight, reps: '10 次' },
+    { name: 'Set 2: 神經啟動', w: Math.max(barWeight, Math.round((barWeight + (weight - barWeight) * 0.5) / 2.5) * 2.5), reps: '5 次' },
+    { name: 'Set 3: 力量衝動', w: Math.max(barWeight, Math.round((barWeight + (weight - barWeight) * 0.7) / 2.5) * 2.5), reps: '3 次' },
+    { name: 'Set 4: 重量適應', w: Math.max(barWeight, Math.round((barWeight + (weight - barWeight) * 0.85) / 2.5) * 2.5), reps: '1~2 次' }
+  ];
+
+  warmupPresets.forEach(step => {
+    const pCalc = calculatePlates(step.w, barWeight);
+    const pText = pCalc.plates.length > 0 ? pCalc.plates.map(p => `${p.weight}k×${p.count}`).join('+') : '空槓';
+
+    const card = document.createElement('div');
+    card.className = 'p-2 rounded-xl bg-iron-950 border border-iron-800 hover:border-hevy-green flex items-center justify-between text-xs cursor-pointer tap-active';
+    card.innerHTML = `
+      <div>
+        <span class="font-bold text-slate-200">${step.name}</span>
+        <span class="text-[10px] text-slate-400 block font-mono">單邊掛：<strong class="text-hevy-amber">${pText}</strong></span>
+      </div>
+      <div class="text-right font-mono">
+        <span class="font-black text-sm text-white">${step.w} kg</span>
+        <span class="text-[10px] text-hevy-green block">${step.reps}</span>
+      </div>
+    `;
+
+    // 點擊帶入
+    card.addEventListener('click', () => {
+      document.getElementById('sheetWeightInput').value = step.w;
+      renderPlateSheetGraphic();
+      feedback.vibrate(20);
+    });
+
+    warmupBox.appendChild(card);
+  });
+}
+
+// 展開替換動作抽屜
+function openSwapModal(exerciseId, exIndex) {
+  state.currentSwapExerciseId = exerciseId;
+  const currentEx = state.exercises.find(e => e.id === exerciseId);
+  const modal = document.getElementById('swapExerciseModal');
+  const label = document.getElementById('swapOriginNameLabel');
+  const list = document.getElementById('swapAlternativesList');
+
+  label.textContent = `原動作：${currentEx ? currentEx.name : ''} (${currentEx ? currentEx.equipment : ''})`;
+  list.innerHTML = '';
+
+  // 找出同肌群或替代陣列裡的動作
+  const alts = state.exercises.filter(e => {
+    if (e.id === exerciseId) return false;
+    return (currentEx.alternatives && currentEx.alternatives.includes(e.id)) || e.category === currentEx.category;
+  });
+
+  alts.forEach(alt => {
+    const card = document.createElement('div');
+    card.className = 'p-3 rounded-xl bg-iron-950 border border-iron-800 hover:border-hevy-blue flex items-center justify-between text-xs cursor-pointer tap-active transition';
+    card.innerHTML = `
+      <div class="space-y-0.5">
+        <strong class="text-white text-sm block">${alt.name}</strong>
+        <span class="text-[10px] px-1.5 py-0.2 rounded bg-iron-800 text-slate-300">${alt.equipment} • ${alt.category}</span>
+      </div>
+      <button class="px-3 py-1.5 rounded-lg bg-hevy-blue/20 text-hevy-blue font-bold text-xs">
+        確認替換
+      </button>
+    `;
+
+    card.addEventListener('click', () => {
+      state.activeWorkout.exercises[exIndex].exerciseId = alt.id;
+      saveLocalData();
+      renderWorkoutSheet();
+      modal.classList.add('hidden');
+      alertToast(`已將動作替換為「${alt.name}」`);
+      feedback.vibrate(30);
+    });
+
+    list.appendChild(card);
+  });
+
+  modal.classList.remove('hidden');
+}
+
+// 展開新增動作庫抽屜
+function openAddExerciseModal(filterCat = '全部') {
+  const modal = document.getElementById('addExerciseModal');
+  const list = document.getElementById('exerciseLibraryList');
+  list.innerHTML = '';
+
+  const filtered = filterCat === '全部' 
+    ? state.exercises 
+    : state.exercises.filter(e => e.category === filterCat);
+
+  filtered.forEach(ex => {
+    const card = document.createElement('div');
+    card.className = 'p-2.5 rounded-xl bg-iron-950 border border-iron-800 hover:border-hevy-green flex items-center justify-between text-xs cursor-pointer tap-active transition';
+    card.innerHTML = `
+      <div>
+        <strong class="text-white text-xs block">${ex.name}</strong>
+        <span class="text-[10px] text-slate-400 font-mono">${ex.category} • ${ex.equipment || '自訂'}</span>
+      </div>
+      <span class="text-hevy-green font-bold text-xs flex items-center gap-1">
+        <i data-lucide="plus" class="w-3.5 h-3.5"></i> 加入
+      </span>
+    `;
+
+    card.addEventListener('click', () => {
+      // 取得上次做這個動作的預設重量
+      const stats = getExerciseHistoryStats(ex.id);
+      const defaultWeight = stats.lastSet ? stats.lastSet.weight : 60;
+      const defaultReps = stats.lastSet ? stats.lastSet.reps : 8;
+
+      state.activeWorkout.exercises.push({
+        exerciseId: ex.id,
+        sets: [
+          { id: 's-' + Date.now(), setType: 'working', weight: defaultWeight, reps: defaultReps, rpe: 8, isCompleted: false },
+          { id: 's-' + (Date.now() + 1), setType: 'working', weight: defaultWeight, reps: defaultReps, rpe: 8, isCompleted: false },
+          { id: 's-' + (Date.now() + 2), setType: 'working', weight: defaultWeight, reps: defaultReps, rpe: 8, isCompleted: false }
+        ]
+      });
+
+      saveLocalData();
+      renderWorkoutSheet();
+      modal.classList.add('hidden');
+      alertToast(`已加入「${ex.name}」到今日課表`);
+      feedback.vibrate(30);
+    });
+
+    list.appendChild(card);
+  });
+
+  if (window.lucide) lucide.createIcons();
+  modal.classList.remove('hidden');
+}
+
+// ======================= 10. 組間計時器邏輯 =======================
 function startTimer(seconds) {
   if (state.timer.intervalId) {
     clearInterval(state.timer.intervalId);
   }
-
-  state.timer.totalSeconds = seconds;
   state.timer.remainingSeconds = seconds;
   state.timer.isRunning = true;
-
-  updateTimerDisplay();
+  updateTimerUI();
 
   state.timer.intervalId = setInterval(() => {
     state.timer.remainingSeconds--;
-    updateTimerDisplay();
+    updateTimerUI();
 
     if (state.timer.remainingSeconds <= 0) {
       clearInterval(state.timer.intervalId);
       state.timer.isRunning = false;
       feedback.playTimerDone();
-      alertNotification('組間休息時間到！請準備下一組。');
+      alertToast('⏰ 組間休息時間到！準備下一組！');
     }
   }, 1000);
 }
@@ -778,10 +1096,10 @@ function stopTimer() {
   }
   state.timer.isRunning = false;
   state.timer.remainingSeconds = 0;
-  updateTimerDisplay();
+  updateTimerUI();
 }
 
-function updateTimerDisplay() {
+function updateTimerUI() {
   const display = document.getElementById('timerDisplay');
   const widget = document.getElementById('restTimerWidget');
   const total = state.timer.remainingSeconds;
@@ -791,372 +1109,358 @@ function updateTimerDisplay() {
   display.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 
   if (state.timer.isRunning) {
-    widget.classList.add('border-amber-500', 'bg-amber-500/10');
+    widget.classList.add('border-hevy-green', 'bg-hevy-green/10');
   } else {
-    widget.classList.remove('border-amber-500', 'bg-amber-500/10');
+    widget.classList.remove('border-hevy-green', 'bg-hevy-green/10');
   }
 }
 
-// 簡易浮動提示 Toast
-function alertNotification(msg) {
+// 簡易 Toast 提示
+function alertToast(msg) {
   const toast = document.createElement('div');
-  toast.className = 'fixed top-16 left-1/2 -translate-x-1/2 z-50 bg-amber-500 text-iron-950 font-bold px-4 py-2.5 rounded-xl shadow-2xl text-xs flex items-center gap-2 animate-bounce';
-  toast.innerHTML = `<i data-lucide="bell" class="w-4 h-4"></i><span>${msg}</span>`;
+  toast.className = 'fixed top-14 left-1/2 -translate-x-1/2 z-50 bg-iron-900 border border-hevy-green text-white font-bold px-4 py-2 rounded-xl shadow-2xl text-xs flex items-center gap-2 animate-bounce';
+  toast.innerHTML = `<i data-lucide="bell" class="w-4 h-4 text-hevy-green"></i><span>${msg}</span>`;
   document.body.appendChild(toast);
   if (window.lucide) lucide.createIcons();
-
-  setTimeout(() => {
-    toast.remove();
-  }, 3200);
+  setTimeout(() => toast.remove(), 2800);
 }
 
-// ======================= 12. 事件監聽與使用者交互綁定 =======================
-
+// ======================= 11. 事件監聽綁定 =======================
 function setupEventListeners() {
   // 底部導航切換
-  const navBtns = document.querySelectorAll('.nav-tab-btn');
-  navBtns.forEach(btn => {
+  document.querySelectorAll('.nav-tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      const targetId = btn.getAttribute('data-target');
-      switchTab(targetId);
-      feedback.vibrate(20);
+      const targetNav = btn.getAttribute('data-nav');
+      switchNavTab(targetNav);
+      feedback.vibrate(15);
     });
   });
 
-  // 槓片計算機：輸入變化
-  const targetWeightInput = document.getElementById('targetWeightInput');
-  targetWeightInput.addEventListener('input', () => renderPlateCalculator());
+  // 工作表內部事件委託 (打勾、輸入修改、切換組別類型)
+  const container = document.getElementById('workoutSheetsContainer');
 
-  // 槓片計算機：微調按鈕列
-  document.querySelectorAll('.weight-adjust-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const delta = parseFloat(btn.getAttribute('data-weight-adjust'));
-      const cur = parseFloat(targetWeightInput.value) || 0;
-      targetWeightInput.value = Math.max(0, cur + delta);
-      renderPlateCalculator();
-      feedback.vibrate(25);
-    });
-  });
+  container.addEventListener('input', (e) => {
+    const input = e.target;
+    const field = input.getAttribute('data-field');
+    const exIdx = parseInt(input.getAttribute('data-ex-index'));
+    const setIdx = parseInt(input.getAttribute('data-set-index'));
 
-  // 槓鈴空槓切換
-  document.querySelectorAll('.bar-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.bar-btn').forEach(b => {
-        b.className = 'bar-btn px-3 py-1 rounded-md text-xs font-semibold text-slate-400 hover:text-white';
-      });
-      btn.className = 'bar-btn px-3 py-1 rounded-md text-xs font-semibold bg-amber-500 text-iron-950';
-      state.settings.barWeight = parseFloat(btn.getAttribute('data-bar'));
+    if (field && !isNaN(exIdx) && !isNaN(setIdx)) {
+      state.activeWorkout.exercises[exIdx].sets[setIdx][field] = parseFloat(input.value) || 0;
       saveLocalData();
-      renderPlateCalculator();
+    }
+  });
+
+  container.addEventListener('click', (e) => {
+    const target = e.target.closest('[data-action]');
+    if (!target) return;
+    const action = target.getAttribute('data-action');
+    const exIdx = parseInt(target.getAttribute('data-ex-index'));
+    const setIdx = parseInt(target.getAttribute('data-set-index'));
+
+    // 1. 打勾完成一組 (Hevy 招牌 Checkmark)
+    if (action === 'toggle-complete') {
+      const set = state.activeWorkout.exercises[exIdx].sets[setIdx];
+      set.isCompleted = !set.isCompleted;
+
+      if (set.isCompleted) {
+        feedback.playCheckSound();
+
+        // 紀錄進歷史
+        const exItem = state.activeWorkout.exercises[exIdx];
+        const exObj = state.exercises.find(e => e.id === exItem.exerciseId);
+        const e1rm = calculateE1RM(set.weight, set.reps, set.rpe || 8);
+
+        // 檢查是否創下 PR
+        const stats = getExerciseHistoryStats(exItem.exerciseId);
+        const isPR = stats.bestE1rm > 0 && e1rm > stats.bestE1rm;
+
+        state.history.unshift({
+          id: 'h-' + Date.now(),
+          date: new Date().toISOString().split('T')[0],
+          timestamp: Date.now(),
+          exerciseId: exItem.exerciseId,
+          exerciseName: exObj ? exObj.name : '自訂動作',
+          category: exObj ? exObj.category : '全身',
+          weight: set.weight,
+          reps: set.reps,
+          rpe: set.rpe || 8,
+          setType: set.setType || 'working',
+          e1rm
+        });
+
+        if (isPR) {
+          setTimeout(() => feedback.playPRCelebration(), 100);
+          alertToast(`🔥 突破個人最佳紀錄！PR: ${e1rm} kg！`);
+        }
+
+        // 自動啟動組間休息計時
+        startTimer(state.settings.restDuration || 90);
+      }
+
+      saveLocalData();
+      renderWorkoutSheet();
+    }
+
+    // 2. 切換組別類型 (工作組 ➔ 熱身組 ➔ 遞減組 ➔ 力竭組)
+    else if (action === 'toggle-set-type') {
+      const set = state.activeWorkout.exercises[exIdx].sets[setIdx];
+      const types = ['working', 'warmup', 'drop', 'failure'];
+      let nextIdx = types.indexOf(set.setType) + 1;
+      if (nextIdx >= types.length) nextIdx = 0;
+      set.setType = types[nextIdx];
+      saveLocalData();
+      renderWorkoutSheet();
+      feedback.vibrate(20);
+    }
+
+    // 3. 新增一組
+    else if (action === 'add-set') {
+      const currentSets = state.activeWorkout.exercises[exIdx].sets;
+      const lastSet = currentSets[currentSets.length - 1] || { weight: 60, reps: 8, rpe: 8 };
+      currentSets.push({
+        id: 's-' + Date.now(),
+        setType: 'working',
+        weight: lastSet.weight,
+        reps: lastSet.reps,
+        rpe: lastSet.rpe,
+        isCompleted: false
+      });
+      saveLocalData();
+      renderWorkoutSheet();
+      feedback.vibrate(20);
+    }
+
+    // 4. 點擊槓片按鈕
+    else if (action === 'plate') {
+      const sets = state.activeWorkout.exercises[exIdx].sets;
+      const targetWeight = sets[0] ? sets[0].weight : 60;
+      openPlateSheet(targetWeight);
       feedback.vibrate(25);
-    });
+    }
+
+    // 5. 點擊替換動作
+    else if (action === 'swap') {
+      const exId = target.getAttribute('data-ex-id');
+      openSwapModal(exId, exIdx);
+      feedback.vibrate(25);
+    }
+
+    // 6. 移除動作
+    else if (action === 'remove-ex') {
+      if (confirm('確定要從今日課表中移除此動作嗎？')) {
+        state.activeWorkout.exercises.splice(exIdx, 1);
+        saveLocalData();
+        renderWorkoutSheet();
+      }
+    }
   });
 
-  // 快速切換熱身組展開/折疊
-  const toggleWarmupDetail = document.getElementById('toggleWarmupDetail');
-  toggleWarmupDetail.addEventListener('click', () => {
-    const list = document.getElementById('warmupListContainer');
-    list.classList.toggle('hidden');
-    toggleWarmupDetail.textContent = list.classList.contains('hidden') ? '展開掛片' : '收合掛片';
+  // 完成今日訓練大按鈕
+  document.getElementById('finishWorkoutBtn').addEventListener('click', () => {
+    alertToast('🎉 今日訓練完成！數據已同步至進步曲線！');
+    feedback.playPRCelebration();
+    saveLocalData();
+    switchNavTab('tab-analytics');
   });
 
-  // 現場訓練日誌：動作選單變更
-  const exerciseSelect = document.getElementById('exerciseSelect');
-  exerciseSelect.addEventListener('change', () => {
-    updateExerciseStatsAndTips();
-    renderTodaySets();
+  // 新增動作按鈕
+  document.getElementById('openAddExerciseSheetBtn').addEventListener('click', () => {
+    openAddExerciseModal('全部');
   });
 
-  // 組別類型切換
-  document.querySelectorAll('.set-type-btn').forEach(btn => {
+  // 關閉各抽屜
+  document.getElementById('closePlateSheetBtn').addEventListener('click', () => {
+    document.getElementById('plateSheetModal').classList.add('hidden');
+  });
+  document.getElementById('closeSwapModalBtn').addEventListener('click', () => {
+    document.getElementById('swapExerciseModal').classList.add('hidden');
+  });
+  document.getElementById('closeAddModalBtn').addEventListener('click', () => {
+    document.getElementById('addExerciseModal').classList.add('hidden');
+  });
+
+  // 槓片抽屜輸入監聽
+  document.getElementById('sheetWeightInput').addEventListener('input', renderPlateSheetGraphic);
+  document.querySelectorAll('.sheet-weight-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.set-type-btn').forEach(b => {
-        b.className = 'set-type-btn px-2.5 py-1 text-[11px] font-bold rounded bg-iron-800 text-slate-400 hover:text-white';
-      });
-      btn.className = 'set-type-btn px-2.5 py-1 text-[11px] font-bold rounded bg-amber-500 text-iron-950';
-      state.activeSetType = btn.getAttribute('data-type');
-      feedback.vibrate(20);
-    });
-  });
-
-  // RPE 膠囊切換
-  document.querySelectorAll('.rpe-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.rpe-btn').forEach(b => {
-        b.className = 'rpe-btn py-2 rounded-lg bg-iron-950 border border-iron-800 text-xs font-mono font-bold text-slate-300';
-      });
-      btn.className = 'rpe-btn py-2 rounded-lg bg-amber-500 text-iron-950 font-mono font-black border border-amber-400';
-      state.activeLogRpe = parseFloat(btn.getAttribute('data-rpe'));
-      
-      const rir = Math.max(0, 10 - state.activeLogRpe);
-      document.getElementById('selectedRpeDesc').textContent = `RPE ${state.activeLogRpe} (${rir === 0 ? '力竭' : `還能做 ${rir} 次`})`;
-      feedback.vibrate(20);
-    });
-  });
-
-  // 訓練日誌重量與次數微調按鈕
-  document.querySelectorAll('.log-weight-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const delta = parseFloat(btn.getAttribute('data-log-weight'));
-      const input = document.getElementById('logWeightInput');
+      const delta = parseFloat(btn.getAttribute('data-sheet-delta'));
+      const input = document.getElementById('sheetWeightInput');
       input.value = Math.max(0, (parseFloat(input.value) || 0) + delta);
-      feedback.vibrate(25);
+      renderPlateSheetGraphic();
+      feedback.vibrate(20);
     });
   });
 
-  document.querySelectorAll('.log-reps-btn').forEach(btn => {
+  // 新增動作肌群分類按鈕列
+  document.querySelectorAll('.cat-filter-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      const delta = parseInt(btn.getAttribute('data-log-reps'));
-      const input = document.getElementById('logRepsInput');
-      input.value = Math.max(1, (parseInt(input.value) || 0) + delta);
-      feedback.vibrate(25);
+      document.querySelectorAll('.cat-filter-btn').forEach(b => {
+        b.className = 'cat-filter-btn px-3 py-1 rounded-full text-xs font-bold bg-iron-800 text-slate-300';
+      });
+      btn.className = 'cat-filter-btn px-3 py-1 rounded-full text-xs font-bold bg-hevy-green text-iron-950';
+      const cat = btn.getAttribute('data-cat');
+      openAddExerciseModal(cat);
+      feedback.vibrate(15);
     });
   });
 
-  // 一鍵記錄當前組按鈕
-  document.getElementById('saveSetBtn').addEventListener('click', () => {
-    const exerciseId = exerciseSelect.value;
-    const exerciseObj = state.exercises.find(e => e.id === exerciseId);
-    const weight = parseFloat(document.getElementById('logWeightInput').value) || 0;
-    const reps = parseInt(document.getElementById('logRepsInput').value) || 1;
-    const rpe = state.activeLogRpe;
-    const setType = state.activeSetType;
-
-    const e1rm = calculateE1RM(weight, reps, rpe);
-    const todayStr = new Date().toISOString().split('T')[0];
-
-    const newLog = {
-      id: 'log-' + Date.now(),
-      date: todayStr,
-      timestamp: Date.now(),
-      exerciseId,
-      exerciseName: exerciseObj ? exerciseObj.name : '自訂動作',
-      weight,
-      reps,
-      rpe,
-      setType,
-      e1rm
-    };
-
-    // 檢查是否創下 PR
-    const isPR = checkForPR(exerciseId, e1rm, weight);
-
-    state.logs.unshift(newLog);
-    saveLocalData();
-
-    feedback.beep(660, 'sine', 0.1);
-    if (isPR) {
-      setTimeout(() => feedback.playPRCelebration(), 150);
-      alertNotification(`🔥 恭喜！打破個人最佳紀錄 (PR: ${e1rm} kg)！`);
-    } else {
-      alertNotification(`已記錄：${weight}kg × ${reps} @ RPE ${rpe}`);
-    }
-
-    renderTodaySets();
-    updateExerciseStatsAndTips();
-    renderHistoryAndPRs();
-
-    // 自動啟動組間休息計時器 (預設 90s)
-    startTimer(state.settings.restDuration || 90);
-  });
-
-  // 刪除組數事件委託
-  document.getElementById('todaySetsList').addEventListener('click', (e) => {
-    const btn = e.target.closest('.delete-log-btn');
-    if (!btn) return;
-    const logId = btn.getAttribute('data-delete-id');
-    state.logs = state.logs.filter(l => l.id !== logId);
-    saveLocalData();
-    renderTodaySets();
-    updateExerciseStatsAndTips();
-    renderHistoryAndPRs();
-    feedback.vibrate(25);
-  });
-
-  // 清空今日組數
-  document.getElementById('clearTodaySetsBtn').addEventListener('click', () => {
-    const todayStr = new Date().toISOString().split('T')[0];
-    if (confirm('確定要清空今天的所有組數紀錄嗎？')) {
-      state.logs = state.logs.filter(l => l.date !== todayStr);
-      saveLocalData();
-      renderTodaySets();
-      updateExerciseStatsAndTips();
-      renderHistoryAndPRs();
-    }
-  });
-
-  // 新增自訂動作 Modal
-  const modal = document.getElementById('addExerciseModal');
-  document.getElementById('addNewExerciseBtn').addEventListener('click', () => {
-    modal.classList.remove('hidden');
-    document.getElementById('newExerciseNameInput').focus();
-  });
-  document.getElementById('closeModalBtn').addEventListener('click', () => modal.classList.add('hidden'));
-  document.getElementById('cancelAddExerciseBtn').addEventListener('click', () => modal.classList.add('hidden'));
-
-  document.getElementById('confirmAddExerciseBtn').addEventListener('click', () => {
-    const nameInput = document.getElementById('newExerciseNameInput');
-    const catSelect = document.getElementById('newExerciseCategory');
+  // 建立自訂動作
+  document.getElementById('createCustomExBtn').addEventListener('click', () => {
+    const nameInput = document.getElementById('customExNameInput');
+    const catSelect = document.getElementById('customExCatSelect');
     const name = nameInput.value.trim();
-    if (!name) return alert('請輸入動作名稱！');
+    if (!name) return alert('請輸入動作名稱');
 
     const newEx = {
       id: 'ex-' + Date.now(),
       name,
-      category: catSelect.value
+      category: catSelect.value,
+      equipment: '自訂',
+      alternatives: []
     };
 
     state.exercises.push(newEx);
     saveLocalData();
-    populateExerciseSelect();
-    exerciseSelect.value = newEx.id;
-    updateExerciseStatsAndTips();
-    modal.classList.add('hidden');
     nameInput.value = '';
-    alertNotification(`已新增動作：「${name}」`);
+    openAddExerciseModal(catSelect.value);
+    alertToast(`已新增自訂動作「${name}」`);
   });
 
-  // RPE / e1RM 輸入監聽
-  ['calcWeightInput', 'calcRepsInput', 'calcRpeSelect', 'targetRepsReverseSelect', 'targetRpeReverseSelect'].forEach(id => {
-    document.getElementById(id).addEventListener('input', renderRpeCalculator);
+  // 數據分頁動作篩選
+  document.getElementById('analyticsExerciseFilter').addEventListener('change', (e) => {
+    renderStrengthLineChart(e.target.value);
   });
 
-  // 計時器組件點擊展開快捷抽屜
-  const timerWidget = document.getElementById('restTimerWidget');
-  const timerDrawer = document.getElementById('timerDrawer');
-  document.getElementById('timerToggleBtn').addEventListener('click', () => {
-    timerDrawer.classList.toggle('hidden');
+  // 肌群恢復分頁快速加入動作
+  document.getElementById('tab-recovery').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-action="quick-add-group"]');
+    if (!btn) return;
+    const group = btn.getAttribute('data-group');
+    switchNavTab('tab-workout');
+    openAddExerciseModal(group);
   });
-  document.getElementById('closeTimerDrawerBtn').addEventListener('click', () => {
-    timerDrawer.classList.add('hidden');
+
+  // 常駐計時器微調
+  document.getElementById('timerQuickPlusBtn').addEventListener('click', () => {
+    state.timer.remainingSeconds += 30;
+    updateTimerUI();
+    feedback.vibrate(20);
   });
-  document.getElementById('timerStopBtn').addEventListener('click', () => {
+  document.getElementById('timerResetBtn').addEventListener('click', () => {
     stopTimer();
-    feedback.vibrate(30);
+    feedback.vibrate(25);
+  });
+  document.getElementById('timerToggleBtn').addEventListener('click', () => {
+    startTimer(state.settings.restDuration || 90);
   });
 
-  // 快捷時間按鈕
-  document.querySelectorAll('.timer-quick-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const sec = parseInt(btn.getAttribute('data-quick-time'));
-      state.settings.restDuration = sec;
-      saveLocalData();
-      startTimer(sec);
-      timerDrawer.classList.add('hidden');
-      feedback.vibrate(25);
-    });
+  // 設定與備份
+  document.getElementById('settingsBarWeight').value = state.settings.barWeight;
+  document.getElementById('settingsBarWeight').addEventListener('change', (e) => {
+    state.settings.barWeight = parseFloat(e.target.value);
+    saveLocalData();
+  });
+
+  document.getElementById('settingsRestDuration').value = state.settings.restDuration;
+  document.getElementById('settingsRestDuration').addEventListener('change', (e) => {
+    state.settings.restDuration = parseInt(e.target.value);
+    saveLocalData();
   });
 
   // 匯出 JSON 備份
-  document.getElementById('exportDataBtn').addEventListener('click', () => {
-    const backupData = {
-      version: '1.0',
+  document.getElementById('exportBackupBtn').addEventListener('click', () => {
+    const backup = {
+      version: '2.0',
       exportDate: new Date().toISOString(),
       exercises: state.exercises,
-      logs: state.logs,
+      history: state.history,
+      activeWorkout: state.activeWorkout,
       settings: state.settings
     };
-
-    const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = `ironlog-backup-${new Date().toISOString().split('T')[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    alertNotification('備份已成功下載！');
+    alertToast('備份已下載至手機本地！');
   });
 
-  // 匯入還原 JSON
-  document.getElementById('importFileInput').addEventListener('change', (e) => {
+  // 匯入 JSON 還原
+  document.getElementById('importBackupInput').addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (!file) return;
-
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
         const imported = JSON.parse(event.target.result);
-        if (imported && Array.isArray(imported.exercises) && Array.isArray(imported.logs)) {
-          state.exercises = imported.exercises;
-          state.logs = imported.logs;
+        if (imported && Array.isArray(imported.history)) {
+          state.history = imported.history;
+          if (imported.exercises) state.exercises = imported.exercises;
+          if (imported.activeWorkout) state.activeWorkout = imported.activeWorkout;
           if (imported.settings) state.settings = imported.settings;
           saveLocalData();
-          populateExerciseSelect();
-          updateExerciseStatsAndTips();
-          renderTodaySets();
-          renderHistoryAndPRs();
-          alertNotification('🎉 資料已成功還原！');
-        } else {
-          alert('匯入的 JSON 格式不正確。');
+          renderWorkoutSheet();
+          renderAnalyticsView();
+          renderRecoveryView();
+          alertToast('🎉 備份已成功還原！');
         }
       } catch (err) {
-        alert('解析檔案失敗，請確認為合法的 JSON 檔案。');
+        alert('解析檔案失敗，請檢查是否為正確的 JSON 檔案');
       }
     };
     reader.readAsText(file);
   });
 
-  // 重置資料
-  document.getElementById('clearAllDataBtn').addEventListener('click', () => {
-    if (confirm('確定要將所有動作與日誌重置為預設值嗎？此動作無法復原！')) {
-      localStorage.removeItem(STORAGE_KEYS.EXERCISES);
-      localStorage.removeItem(STORAGE_KEYS.LOGS);
-      localStorage.removeItem(STORAGE_KEYS.SETTINGS);
-      loadLocalData();
-      populateExerciseSelect();
-      updateExerciseStatsAndTips();
-      renderTodaySets();
-      renderHistoryAndPRs();
-      alertNotification('已重置為預設初始資料。');
+  // 重置演示資料
+  document.getElementById('resetDemoDataBtn').addEventListener('click', () => {
+    if (confirm('確定重置所有日誌為初始演示資料？')) {
+      state.history = [...INITIAL_DEMO_HISTORY];
+      state.exercises = [...DEFAULT_EXERCISES];
+      saveLocalData();
+      renderWorkoutSheet();
+      renderAnalyticsView();
+      renderRecoveryView();
+      alertToast('已重置為初始資料');
     }
-  });
-
-  // 快速重量按鈕 (常用三大項工作重切換)
-  document.getElementById('quickPresetsBtn').addEventListener('click', () => {
-    const presets = [60, 80, 100, 120, 140, 180];
-    const cur = parseFloat(targetWeightInput.value) || 60;
-    let nextIdx = presets.findIndex(p => p > cur);
-    if (nextIdx === -1) nextIdx = 0;
-    targetWeightInput.value = presets[nextIdx];
-    renderPlateCalculator();
-    feedback.vibrate(25);
   });
 }
 
-function switchTab(tabId) {
-  state.currentTab = tabId;
+function switchNavTab(targetNav) {
+  state.currentNav = targetNav;
 
-  // 隱藏所有視圖
   document.querySelectorAll('.tab-pane').forEach(el => el.classList.add('hidden'));
-  const activePane = document.getElementById(tabId);
+  const activePane = document.getElementById(targetNav);
   if (activePane) activePane.classList.remove('hidden');
 
-  // 更新按鈕高亮
   document.querySelectorAll('.nav-tab-btn').forEach(btn => {
-    const isCurrent = btn.getAttribute('data-target') === tabId;
+    const isCurrent = btn.getAttribute('data-nav') === targetNav;
     if (isCurrent) {
-      btn.className = 'nav-tab-btn active flex flex-col items-center justify-center py-1.5 rounded-xl text-amber-400 transition';
+      btn.className = 'nav-tab-btn active flex flex-col items-center justify-center py-1.5 rounded-xl text-hevy-green transition';
     } else {
       btn.className = 'nav-tab-btn flex flex-col items-center justify-center py-1.5 rounded-xl text-slate-400 hover:text-slate-200 transition';
     }
   });
 
+  if (targetNav === 'tab-workout') {
+    renderWorkoutSheet();
+  } else if (targetNav === 'tab-analytics') {
+    renderAnalyticsView();
+  } else if (targetNav === 'tab-recovery') {
+    renderRecoveryView();
+  }
+
   if (window.lucide) lucide.createIcons();
 }
 
-// ======================= 13. 應用程式入口 =======================
+// ======================= 12. 應用程式入口 =======================
 window.addEventListener('DOMContentLoaded', () => {
   loadLocalData();
-  populateExerciseSelect();
-  renderPlateCalculator();
-  updateExerciseStatsAndTips();
-  renderTodaySets();
-  renderRpeCalculator();
-  renderHistoryAndPRs();
   setupEventListeners();
+  renderWorkoutSheet();
+  updateTimerUI();
 
-  if (window.lucide) {
-    lucide.createIcons();
-  }
+  if (window.lucide) lucide.createIcons();
 });
-
