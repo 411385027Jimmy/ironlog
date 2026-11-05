@@ -1,32 +1,1095 @@
 /**
- * IronLog Pro - 核心應用程式邏輯 (v5.0 全面重構版)
- * 包含：打勾流水線、雙軌排程模式、部位熱身、現場計算工具箱、SVG動態肌群疲勞、雙軸進度圖、Canvas結算分享卡
+ * IronLog Pro - 核心應用程式邏輯 (v6.0 全面重構版)
+ * 包含：打勾流水線、雙軌排程模式、部位熱身、動作知識庫指南、Form Check 側拍影片回放 (IndexedDB)、
+ * 現場計算工具箱、SVG動態肌群疲勞、雙軸進度圖、Canvas結算分享卡
  */
 
-// ======================= 1. 預設動作庫與基礎資料 =======================
+// ======================= 1. 動作知識庫與預設資料 =======================
 const DEFAULT_EXERCISES = [
+  // 胸部
   { id: 'bench-press', name: '平板槓鈴臥推 (Bench Press)', category: '胸部', isCompound: true, pinNote: '握距中指對準刻痕，沉肩收核心' },
-  { id: 'incline-db-press', name: '上斜啞鈴臥推 (Incline DB Press)', category: '胸部', isCompound: false, pinNote: '椅背調整至 30 度角' },
-  { id: 'dips', name: '雙槓臂屈伸 (Dips)', category: '胸部', isCompound: true, pinNote: '軀幹前傾著重下胸' },
-  { id: 'cable-fly', name: '滑輪夾胸 (Cable Fly)', category: '胸部', isCompound: false, pinNote: '滑輪高度調整至肩膀水平' },
+  { id: 'incline-db-press', name: '上斜啞鈴臥推 (Incline DB Press)', category: '胸部', isCompound: false, pinNote: '椅背調整至 30 度角，手肘內夾45度' },
+  { id: 'incline-barbell-press', name: '上斜槓鈴臥推 (Incline BB Press)', category: '胸部', isCompound: true, pinNote: '落點於鎖骨下方2公分，挺胸沈肩' },
+  { id: 'db-bench-press', name: '啞鈴平板臥推 (Flat DB Press)', category: '胸部', isCompound: false, pinNote: '底端小臂垂直地面，頂部自然靠攏不撞擊' },
+  { id: 'dips', name: '雙槓臂屈伸 (Dips)', category: '胸部', isCompound: true, pinNote: '軀幹前傾著重下胸，下放至大臂平行地面' },
+  { id: 'cable-fly', name: '滑輪夾胸 (Cable Fly)', category: '胸部', isCompound: false, pinNote: '滑輪高度調整至肩膀水平，手臂微屈抱大樹' },
+  { id: 'pec-deck', name: '蝴蝶機夾胸 (Pec Deck Fly)', category: '胸部', isCompound: false, pinNote: '握把高度對齊乳頭連線，頂峰收縮停頓1秒' },
+  { id: 'push-up', name: '伏地挺身 (Push-Up)', category: '胸部', isCompound: false, pinNote: '腹臀夾緊成一平板，鼻尖輕觸地面' },
+  { id: 'decline-press', name: '下斜臥推 (Decline Press)', category: '胸部', isCompound: true, pinNote: '小腿勾牢固定，落點於下胸緣' },
 
-  { id: 'squat', name: '槓鈴頸後深蹲 (Back Squat)', category: '腿部', isCompound: true, pinNote: '站距略寬於肩，腳尖朝外30度' },
-  { id: 'leg-press', name: '45度仰臥腿推機 (Leg Press)', category: '腿部', isCompound: true, pinNote: '背板貼平，膝蓋不內扣' },
-  { id: 'rdl', name: '羅馬尼亞硬舉 (RDL)', category: '腿部', isCompound: true, pinNote: '髖關節後推，背部平直微曲膝' },
-  { id: 'leg-extension', name: '坐姿腿屈伸 (Leg Extension)', category: '腿部', isCompound: false, pinNote: '椅背調整至第 3 孔' },
+  // 腿部
+  { id: 'squat', name: '槓鈴頸後深蹲 (Back Squat)', category: '腿部', isCompound: true, pinNote: '站距略寬於肩，腳尖朝外30度，膝對腳尖' },
+  { id: 'front-squat', name: '槓鈴頸前深蹲 (Front Squat)', category: '腿部', isCompound: true, pinNote: '手肘高抬鎖骨架槓，軀幹直立' },
+  { id: 'leg-press', name: '45度仰臥腿推機 (Leg Press)', category: '腿部', isCompound: true, pinNote: '背板貼平，下背不離椅，膝蓋不內扣' },
+  { id: 'hack-squat', name: '哈克深蹲 (Hack Squat)', category: '腿部', isCompound: true, pinNote: '腳掌偏下方站位強調股四頭，臀貼靠板' },
+  { id: 'rdl', name: '羅馬尼亞硬舉 (RDL)', category: '腿部', isCompound: true, pinNote: '髖關節後推，背部平直微屈膝感受膕旁拉扯' },
+  { id: 'leg-extension', name: '坐姿腿屈伸 (Leg Extension)', category: '腿部', isCompound: false, pinNote: '椅背調整至膝關節對齊轉軸，頂峰收縮伸膝' },
+  { id: 'leg-curl', name: '俯臥/坐姿腿彎舉 (Leg Curl)', category: '腿部', isCompound: false, pinNote: '腳踝卡墊貼實，骨盆不抬起，勾腿頂峰停頓' },
+  { id: 'bulgarian-split-squat', name: '保加利亞分腿蹲 (Bulgarian Split)', category: '腿部', isCompound: false, pinNote: '後腳背搭凳，軀幹微前傾著重臀大肌' },
+  { id: 'hip-thrust', name: '槓鈴臀推 (Barbell Hip Thrust)', category: '腿部', isCompound: true, pinNote: '肩胛骨下角抵椅邊，頂部髖關節完全展開夾臀' },
+  { id: 'calf-raise', name: '站姿/坐姿提踵 (Calf Raise)', category: '腿部', isCompound: false, pinNote: '前腳掌踩板，底端充分拉伸小腿，頂端停頓' },
 
-  { id: 'deadlift', name: '傳統硬舉 (Conventional Deadlift)', category: '背部', isCompound: true, pinNote: '槓鈴貼小腿脛骨起槓' },
-  { id: 'barbell-row', name: '槓鈴划船 (Barbell Row)', category: '背部', isCompound: true, pinNote: '前傾45度拉向肚臍' },
-  { id: 'lat-pulldown', name: '高位滑輪下拉 (Lat Pulldown)', category: '背部', isCompound: true, pinNote: '大腿擋板卡緊，胸口微挺' },
-  { id: 'pull-up', name: '引體向上 (Pull-Up)', category: '背部', isCompound: true, pinNote: '肩胛下沉帶動手肘向後下拉' },
+  // 背部
+  { id: 'deadlift', name: '傳統硬舉 (Conventional Deadlift)', category: '背部', isCompound: true, pinNote: '槓鈴貼小腿脛骨起槓，鎖緊背闊肌伸髖直立' },
+  { id: 'sumo-deadlift', name: '相撲硬舉 (Sumo Deadlift)', category: '背部', isCompound: true, pinNote: '寬站距腳尖朝外，軀幹立挺，蹬地展開雙膝' },
+  { id: 'barbell-row', name: '俯身槓鈴划船 (Barbell Row)', category: '背部', isCompound: true, pinNote: '俯身約45度，背平核心緊，拉向肚臍下腹' },
+  { id: 'lat-pulldown', name: '高位滑輪下拉 (Lat Pulldown)', category: '背部', isCompound: true, pinNote: '大腿擋板卡緊，胸口微挺，手肘引導向後下拉' },
+  { id: 'pull-up', name: '引體向上 (Pull-Up)', category: '背部', isCompound: true, pinNote: '肩胛下沉帶動手肘向後下拉，下巴過槓' },
+  { id: 'seated-cable-row', name: '坐姿滑輪划船 (Seated Cable Row)', category: '背部', isCompound: true, pinNote: '挺胸腰背挺直，拉至下腹夾緊肩胛骨' },
+  { id: 't-bar-row', name: 'T槓划船 (T-Bar Row)', category: '背部', isCompound: true, pinNote: '核心繃緊抵禦剪力，手肘緊貼軀幹後拉' },
+  { id: 'db-row', name: '單臂啞鈴划船 (One-Arm DB Row)', category: '背部', isCompound: false, pinNote: '支撐手推實平板凳，手肘朝骨盆斜後方拉起' },
+  { id: 'face-pull', name: '繩索面拉 (Face Pull)', category: '背部', isCompound: false, pinNote: '繩索對準雙眼或眉毛高度拉開，肩胛外旋' },
+  { id: 'straight-arm-pulldown', name: '直臂滑輪下壓 (Straight-Arm Pulldown)', category: '背部', isCompound: false, pinNote: '手肘微曲鎖定，背闊肌帶動手臂弧形壓向大腿' },
 
-  { id: 'ohp', name: '槓鈴站姿肩推 (Overhead Press)', category: '肩部', isCompound: true, pinNote: '收緊核心與臀部，直上直下' },
-  { id: 'db-shoulder-press', name: '坐姿啞鈴肩推 (DB Shoulder Press)', category: '肩部', isCompound: true, pinNote: '下沉至耳旁水平' },
-  { id: 'lateral-raise', name: '啞鈴側平舉 (Lateral Raise)', category: '肩部', isCompound: false, pinNote: '手肘微彎如倒水' },
+  // 肩部
+  { id: 'ohp', name: '槓鈴站姿肩推 (Overhead Press)', category: '肩部', isCompound: true, pinNote: '收緊核心與臀部，起槓微避開下巴直上直下' },
+  { id: 'db-shoulder-press', name: '坐姿啞鈴肩推 (DB Shoulder Press)', category: '肩部', isCompound: true, pinNote: '椅背約75~80度，下沉至耳旁水平推起' },
+  { id: 'lateral-raise', name: '啞鈴側平舉 (DB Lateral Raise)', category: '肩部', isCompound: false, pinNote: '軀幹微前傾，手肘微彎引導抬起至水平' },
+  { id: 'cable-lateral-raise', name: '繩索側平舉 (Cable Lateral Raise)', category: '肩部', isCompound: false, pinNote: '滑輪調至手腕高度，側身向斜上方拉出全程張力' },
+  { id: 'reverse-pec-deck', name: '蝴蝶機反向飛鳥 (Reverse Pec Deck)', category: '肩部', isCompound: false, pinNote: '握把與肩同高，手臂微屈向兩側展開鍛鍊後三角' },
+  { id: 'upright-row', name: '槓鈴/啞鈴直立划船 (Upright Row)', category: '肩部', isCompound: false, pinNote: '握距稍寬於肩，手肘引導提起至胸口高度' },
+  { id: 'arnold-press', name: '阿諾肩推 (Arnold Press)', category: '肩部', isCompound: false, pinNote: '胸前掌心朝內起步，推起時旋轉掌心朝前' },
 
-  { id: 'bicep-curl', name: '啞鈴/槓鈴彎舉 (Bicep Curl)', category: '手臂', isCompound: false, pinNote: '手肘固定於身體兩側' },
-  { id: 'tricep-pushdown', name: '滑輪三頭肌下壓 (Tricep Pushdown)', category: '手臂', isCompound: false, pinNote: '大臂夾緊不晃動' }
+  // 手臂
+  { id: 'bicep-curl', name: '啞鈴/槓鈴彎舉 (Bicep Curl)', category: '手臂', isCompound: false, pinNote: '手肘固定於身體兩側不晃動，頂端旋後充分收縮' },
+  { id: 'hammer-curl', name: '啞鈴槌式彎舉 (Hammer Curl)', category: '手臂', isCompound: false, pinNote: '掌心相對垂直向上，強化肱橈肌與肱肌厚度' },
+  { id: 'incline-curl', name: '上斜啞鈴彎舉 (Incline DB Curl)', category: '手臂', isCompound: false, pinNote: '椅背45~60度，手臂自然下垂拉長二頭肌長頭' },
+  { id: 'tricep-pushdown', name: '滑輪三頭肌下壓 (Tricep Pushdown)', category: '手臂', isCompound: false, pinNote: '大臂夾緊軀幹，下壓到底完全伸直手肘鎖死' },
+  { id: 'skull-crusher', name: '仰臥臂屈伸/碎顱者 (Skull Crusher)', category: '手臂', isCompound: false, pinNote: '大臂朝頭頂方向微傾15度，曲肘落向頭頂後方' },
+  { id: 'overhead-tricep-extension', name: '繩索過頭臂屈伸 (Overhead Extension)', category: '手臂', isCompound: false, pinNote: '手肘朝前收攏，過頭伸展充分拉長三頭長頭' },
+
+  // 核心
+  { id: 'hanging-leg-raise', name: '懸垂舉腿 (Hanging Leg Raise)', category: '核心', isCompound: false, pinNote: '骨盆主動後傾帶動雙腿上捲，不靠慣性擺盪' },
+  { id: 'ab-wheel', name: '健腹輪 (Ab Wheel Rollout)', category: '核心', isCompound: false, pinNote: '骨盆微後傾背部微圓，向前推出至張力極限後拉回' },
+  { id: 'plank', name: '平板支撐 (Plank)', category: '核心', isCompound: false, pinNote: '手肘撐於肩正下方，收腹夾臀全身成一直線' }
 ];
+
+// 動作示範與運動指南 (40+主流動作靜態知識庫字典)
+const EXERCISE_GUIDES = {
+  'bench-press': {
+    name: '平板槓鈴臥推 (Bench Press)',
+    primary: '胸大肌 (胸肌中束、整體厚度)',
+    secondary: '前三角肌、肱三頭肌',
+    setup: [
+      '躺於臥推凳上，雙眼正對槓鈴正下方，背部自然反弓，肩胛骨向後向下收緊並牢靠貼實椅面。',
+      '雙腳全腳掌踩實地面（足跟不可離地），雙手虎口鎖握槓鈴，握距約 1.5 倍肩寬（下放到底時前臂垂直地面）。',
+      '深吸氣啟動核心與腹內壓，推起槓鈴移至肩膀正上方就緒。'
+    ],
+    execution: [
+      '【離心下放】：吸氣控制槓鈴勻速（2~3秒）慢降至胸骨中下段（約乳頭連線處），手肘與軀幹呈約 45~75 度角，切勿外展90度。',
+      '【觸胸轉換】：底部輕觸胸口或懸停 0.5 秒，胸肌維持緊繃張力，不利用胸骨彈震借力。',
+      '【向心推起】：腳踩地面傳遞地面反作用力，胸肌全力向內收縮推起槓鈴，回到頂點手肘微屈不鎖死。'
+    ],
+    cues: [
+      '常見代償：切忌聳肩或肩胛骨前突（會造成肩峰撞擊），過程中下背始終維持微弓，臀部緊貼椅面不可抬起。',
+      '呼吸節奏：離心下放時深吸氣蓄積腹內壓，推過黏滯點（Sticking Point）後順勢吐氣。'
+    ]
+  },
+  'incline-db-press': {
+    name: '上斜啞鈴臥推 (Incline DB Press)',
+    primary: '胸大肌上束 (鎖骨端胸肌)',
+    secondary: '前三角肌、肱三頭肌',
+    setup: [
+      '將斜板角度調整為 30°~45°（角度過高容易轉移至肩膀前束），膝蓋頂起啞鈴順勢躺下。',
+      '雙腳踩實地面，肩胛骨向後向下鎖死，挺胸微拱腰，手腕保持中立不後折。'
+    ],
+    execution: [
+      '【離心下放】：勻速下沉啞鈴至胸肌外側高度，手肘內夾約 45°~60°，感受上胸深層拉伸。',
+      '【向心推起】：上胸主動發力，推向鎖骨正上方，在頂點自然微靠攏，感受上胸強烈收縮。',
+      '【頂點控制】：推至最高點停留 0.5 秒，手肘微屈不完全鎖死，保持胸肌張力。'
+    ],
+    cues: [
+      '常見代償：避免斜板角度過陡（如60度）變成練肩膀，下放時不要讓啞鈴過度向外擺盪。',
+      '呼吸節奏：啞鈴下放時深吸氣，推起發力時用力吐氣。'
+    ]
+  },
+  'incline-barbell-press': {
+    name: '上斜槓鈴臥推 (Incline BB Press)',
+    primary: '胸大肌上束',
+    secondary: '前三角肌、肱三頭肌',
+    setup: [
+      '斜椅設定 30 度，雙眼垂直槓鈴，握距略窄於平板臥推（約1.4倍肩寬），鎖定肩胛下沉。'
+    ],
+    execution: [
+      '【離心下放】：下放槓鈴落點於鎖骨下方約 2~3 公分處，手肘指向兩側偏前方。',
+      '【向心推起】：推起軌跡略朝面部上方弧度上升，頂點推至眼睛水平正上方。',
+      '【張力維持】：下放速度保持 2 秒控制，避免砸胸反彈。'
+    ],
+    cues: [
+      '常見代償：手腕過度後翻造成腕隧道壓迫，起槓前務必讓槓鈴重力線落在掌根上。',
+      '呼吸節奏：離心慢吸氣，推起過半吐氣。'
+    ]
+  },
+  'db-bench-press': {
+    name: '啞鈴平板臥推 (Flat DB Press)',
+    primary: '胸大肌 (整體胸肌、深層收縮)',
+    secondary: '前三角肌、肱三頭肌',
+    setup: [
+      '坐在平板椅邊，將啞鈴立於大腿上方，順勢後躺並用大腿協助將啞鈴頂至胸前。',
+      '肩胛骨收攏下沉，雙腳大步踩地，手腕與前臂始終保持垂直地面。'
+    ],
+    execution: [
+      '【深層拉伸】：下放時啞鈴下沿接觸胸肌外側，比槓鈴擁有更大的活動度與拉伸感。',
+      '【向心擠壓】：胸肌發力將大臂向內擠壓，啞鈴在頂部微聚攏但不相撞。',
+      '【節奏】：離心 2 秒，頂峰停留 1 秒，充分感受胸肌中縫收緊。'
+    ],
+    cues: [
+      '常見代償：啞鈴碰撞發出撞擊聲會瞬間喪失胸肌張力；手肘切勿直角外展90度。',
+      '呼吸節奏：下放深吸氣挺胸，上推擠壓時緩慢吐氣。'
+    ]
+  },
+  'dips': {
+    name: '雙槓臂屈伸 (Dips)',
+    primary: '胸大肌下束 (下胸輪廓)',
+    secondary: '肱三頭肌、前三角肌',
+    setup: [
+      '雙手撐於雙槓上，雙臂伸直懸空支撐，軀幹前傾約 30 度，膝蓋微彎小腿交叉。'
+    ],
+    execution: [
+      '【離心下沉】：屈肘下放身體，手肘向後向外約45度，軀幹始終維持前傾，下放至大臂平行地面。',
+      '【向心撐起】：下胸與三頭同時發力將身體推回起點，推至頂點胸肌強力收縮。',
+      '【活動度控制】：肩關節活動度受限者下放至大臂與地面平行即可，避免肩峰下擠壓。'
+    ],
+    cues: [
+      '常見代償：身體過於垂直會將受力轉移到三頭肌；下沉過深可能造成前胸鎖骨韌帶與肩關節拉傷。',
+      '呼吸節奏：下沉時吸氣，推起身體時吐氣。'
+    ]
+  },
+  'cable-fly': {
+    name: '滑輪夾胸 (Cable Fly)',
+    primary: '胸大肌 (胸肌內側與頂峰孤立收縮)',
+    secondary: '前三角肌',
+    setup: [
+      '將兩側滑輪調整至胸部或略高位置，雙手握把手向前邁出一步成弓箭步，背部挺直核心收緊。'
+    ],
+    execution: [
+      '【展胸拉伸】：吸氣時雙手微屈如環抱大樹，手臂向兩側後方打開至胸肌充分拉伸。',
+      '【內夾收縮】：呼氣時胸肌主動收縮，雙手沿弧線向胸前合攏，頂點雙手靠近停留 1 秒。',
+      '【動作軌跡】：想像用左右上臂大臂向內碰在一起，而非用手掌去合攏。'
+    ],
+    cues: [
+      '常見代償：手肘過度屈伸變成推胸；借用腰部擺動甩重量。',
+      '呼吸節奏：展臂吸氣，合攏夾胸時長吐氣。'
+    ]
+  },
+  'pec-deck': {
+    name: '蝴蝶機夾胸 (Pec Deck Fly)',
+    primary: '胸大肌內側與中束',
+    secondary: '前三角肌',
+    setup: [
+      '調整座椅高度使握把中心落在乳頭至胸部中段水平線，後背與後腦勺貼緊靠背。'
+    ],
+    execution: [
+      '【水平內收】：肩胛骨後收貼緊靠背，雙肘微屈固定角度，胸肌發力向前向內夾攏。',
+      '【頂峰擠壓】：雙臂合攏時停頓 1 秒，用力擠壓胸肌中縫。',
+      '【離心控制】：2~3秒均勻慢速還原至胸大肌拉伸位，配重片不完全相撞。'
+    ],
+    cues: [
+      '常見代償：聳肩、胸口塌陷向前探頭；手肘角度隨動作變形。',
+      '呼吸節奏：夾攏時吐氣，還原拉伸時吸氣。'
+    ]
+  },
+  'push-up': {
+    name: '伏地挺身 (Push-Up)',
+    primary: '胸大肌、核心肌群',
+    secondary: '前三角肌、肱三頭肌',
+    setup: [
+      '雙手略寬於肩撐地，指尖朝前微外展，雙腿向後蹬直，核心與臀肌夾緊成一直線。'
+    ],
+    execution: [
+      '【離心慢放】：屈肘下沉軀幹，手肘內夾45度，下沉至胸口或鼻尖輕觸地面。',
+      '【向心撐起】：雙手推實地面，胸肌發力推回頂點，肩胛骨在頂端自然展開。'
+    ],
+    cues: [
+      '常見代償：骨盆塌陷塌腰（核心鬆懈）；手肘外展成90度Ｔ字形導致肩撞擊。',
+      '呼吸節奏：下沉吸氣，撐起吐氣。'
+    ]
+  },
+  'decline-press': {
+    name: '下斜臥推 (Decline Press)',
+    primary: '胸大肌下束 (下胸輪廓)',
+    secondary: '肱三頭肌',
+    setup: [
+      '躺在下斜板上（約15~30度），腳踝牢牢勾住防護泡棉，握距同平板臥推。'
+    ],
+    execution: [
+      '【軌跡控制】：槓鈴下放落點位於胸肌下緣（劍突附近），推起直上至胸上方。',
+      '【安全回位】：回槓時需格外注意槓鈴掛鉤位置，避免力竭滑落。'
+    ],
+    cues: [
+      '常見代償：倒衝血時間過長容易頭暈，組間請坐起深呼吸休息。',
+      '呼吸節奏：下放吸氣，推起吐氣。'
+    ]
+  },
+
+  // 腿部
+  'squat': {
+    name: '槓鈴頸後深蹲 (Back Squat)',
+    primary: '股四頭肌、臀大肌',
+    secondary: '內收肌、膕旁肌、豎脊肌、核心肌群',
+    setup: [
+      '槓鈴置於斜方肌上束（高槓）或肩胛骨脊上方（低槓），雙手牢固握槓，手肘向後收緊形成背部肌肉支架。',
+      '雙腳站距與肩同寬或略寬，腳尖朝外 15°~30°，深吸一口氣進行腹式呼吸（瓦式呼吸 Valsalva Maneuver）鎖死核心。'
+    ],
+    execution: [
+      '【下蹲階段】：髖關節與膝關節同時啟動，膝蓋朝腳尖方向推開，屁股向後向下坐，下蹲至髖關節折線低於膝關節上緣（全蹲或水平蹲）。',
+      '【底端轉換】：底部不彈震借力，維持背部平直與核心腹內壓，骨盆不發生嚴重後傾（避免屁股眨眼 Butt Wink）。',
+      '【向心起立】：全腳掌蹬地，臀大肌與大腿前側同時發力向上站起，站起過程中膝蓋保持朝外不內扣。'
+    ],
+    cues: [
+      '常見代償：膝蓋內扣（X型腿）、重心移至腳尖（腳後跟浮起）、早安深蹲（屁股先起軀幹過度前傾）。',
+      '呼吸節奏：下蹲前深吸一大口氣至腹部蓄壓屏住，蹲起通過黏滯點後用力吐氣。'
+    ]
+  },
+  'front-squat': {
+    name: '槓鈴頸前深蹲 (Front Squat)',
+    primary: '股四頭肌 (孤立刺激強度高)',
+    secondary: '核心肌群、上背部肌群',
+    setup: [
+      '將槓鈴架於三角肌前束上方，手肘高抬平行地面，大臂夾角保持水平。',
+      '站距略窄於頸後深蹲，腳尖朝外，軀幹維持高度直立。'
+    ],
+    execution: [
+      '【直立下蹲】：保持手肘抬高不垂落，屈髖屈膝直直向下坐，深蹲到底部。',
+      '【向心驅動】：腳後跟踩實地面向上推起，胸口主動向上挺拔引導軀幹。'
+    ],
+    cues: [
+      '常見代償：手肘垂落導致槓鈴前滑掉落；上背無力弓背駝圓。',
+      '呼吸節奏：下蹲前瓦氏吸氣蓄壓，起立後吐氣。'
+    ]
+  },
+  'leg-press': {
+    name: '45度仰臥腿推機 (Leg Press)',
+    primary: '股四頭肌、臀大肌',
+    secondary: '內收肌、膕旁肌',
+    setup: [
+      '背部與骨盆牢靠貼實靠板，雙手緊握兩側握把將臀部壓死在椅墊上。',
+      '雙腳置於踏板中段，與肩同寬，腳尖微朝外。'
+    ],
+    execution: [
+      '【深沉屈膝】：釋放安全卡榫，屈膝勻速下放踏板，膝蓋朝腳尖外側打開，下放至大腿貼近胸部（但骨盆不可捲起懸空）。',
+      '【推蹬向上】：腳掌全腳掌均勻蹬板，推至頂點膝蓋保持微屈（嚴禁膝蓋超伸完全鎖死）。'
+    ],
+    cues: [
+      '常見代償：骨盆後捲下背懸空（會對腰椎造成極大剪力）；推到底時膝關節反折鎖死。',
+      '呼吸節奏：踏板下放時吸氣，推起時用力吐氣。'
+    ]
+  },
+  'hack-squat': {
+    name: '哈克深蹲 (Hack Squat)',
+    primary: '股四頭肌 (外側與股直肌強化)',
+    secondary: '臀大肌',
+    setup: [
+      '背部完全貼牢儀器靠墊，雙肩頂住護墊，雙腳置於踏板中下位置，站距同肩寬。'
+    ],
+    execution: [
+      '【深沉折疊】：下蹲時膝關節向前推移，背部沿滑軌軌跡向下滑行，蹲至大腿小腿呈90度或更深。',
+      '【大腿主導】：股四頭肌持續繃緊發力推起滑軌，頂端手抓扶手控制節奏。'
+    ],
+    cues: [
+      '常見代償：腳跟離板（腳底應全腳掌踩實）；推起時膝蓋顫抖內夾。',
+      '呼吸節奏：下滑吸氣，推升吐氣。'
+    ]
+  },
+  'rdl': {
+    name: '羅馬尼亞硬舉 (RDL)',
+    primary: '膕旁肌 (大腿後側)、臀大肌',
+    secondary: '豎脊肌、核心肌群',
+    setup: [
+      '站姿起槓，手握槓鈴約與肩同寬，挺胸沈肩，雙膝微屈（保持微屈角度在整個動作中鎖定不變）。'
+    ],
+    execution: [
+      '【主動後移髖部】：想像屁股後方有牆，屁股主動向後推，上半身沿髖關節鉸鏈（Hip Hinge）前傾。',
+      '【貼脛下移】：槓鈴始終貼近大腿下行，至膝蓋下方感受大腿後側膕旁肌強烈緊繃拉伸。',
+      '【伸髖收臀】：臀部用力向前推回直立站姿，在頂端夾緊臀大肌。'
+    ],
+    cues: [
+      '常見代償：膝蓋主動彎曲過多變成深蹲；彎腰駝背下放槓鈴造成腰椎受傷。',
+      '呼吸節奏：屈髖後移時吸氣，向前伸髖夾臀時吐氣。'
+    ]
+  },
+  'leg-extension': {
+    name: '坐姿腿屈伸 (Leg Extension)',
+    primary: '股四頭肌 (單關節孤立刺激)',
+    secondary: '無',
+    setup: [
+      '調整椅背使膝蓋旋轉軸線精確對齊機台轉軸，小腿護墊置於腳踝上方 2 公分處。'
+    ],
+    execution: [
+      '【向上踢腿】：股四頭肌主動發力向上伸展雙腿，直至雙膝完全伸直。',
+      '【頂峰擠壓】：在最高點停頓鎖緊 1 秒，感受股四頭肌燃燒。',
+      '【離心慢放】：2~3秒勻速下放，配重塊不著地立即進行下一跳。'
+    ],
+    cues: [
+      '常見代償：屁股浮離座位借力；利用爆發力快速甩起重量。',
+      '呼吸節奏：踢腿伸直時吐氣，還原下放時吸氣。'
+    ]
+  },
+  'leg-curl': {
+    name: '俯臥/坐姿腿彎舉 (Leg Curl)',
+    primary: '膕旁肌 (大腿後側)',
+    secondary: '腓腸肌 (小腿)',
+    setup: [
+      '俯臥或坐於機台上，將護墊置於腳跟阿基里斯腱上方，骨盆貼緊椅墊，雙手抓緊握把。'
+    ],
+    execution: [
+      '【收縮彎曲】：大腿後側發力將滾輪快速勾向臀部，頂端停留 1 秒。',
+      '【離心控制】：吸氣慢速（2~3秒）還原至雙腿微屈位置，維持後側張力。'
+    ],
+    cues: [
+      '常見代償：骨盆在勾腿時向上抬起（臀部懸空），造成腰椎代償代發力。',
+      '呼吸節奏：勾腿用力時吐氣，緩慢下放時吸氣。'
+    ]
+  },
+  'bulgarian-split-squat': {
+    name: '保加利亞分腿蹲 (Bulgarian Split)',
+    primary: '臀大肌、股四頭肌 (單腳穩定性訓練)',
+    secondary: '內收肌、核心',
+    setup: [
+      '後腳腳背搭在後方臥推凳上，前腳向前邁出約 2~3 個腳掌長度，保持骨盆朝向正前方。'
+    ],
+    execution: [
+      '【下蹲下沉】：軀幹微前傾約 15 度（側重臀大肌），垂直下沉至前腳大腿接近水平。',
+      '【前腳驅動】：主要靠前腳腳掌踩實地面站起，後腳僅提供平衡支撐，不主動蹬地。'
+    ],
+    cues: [
+      '常見代償：重心全落在後腳導致後腿髖屈肌拉扯過緊；骨盆向左右傾斜旋轉。',
+      '呼吸節奏：下蹲吸氣，站起推回時吐氣。'
+    ]
+  },
+  'hip-thrust': {
+    name: '槓鈴臀推 (Barbell Hip Thrust)',
+    primary: '臀大肌 (最大力量輸出)',
+    secondary: '膕旁肌、股四頭肌',
+    setup: [
+      '背部靠在臥推凳邊緣（肩胛骨下角），槓鈴置於髖關節折線處（務必使用厚海綿護墊），雙腳踩地。'
+    ],
+    execution: [
+      '【伸髖頂起】：足跟發力踩地，臀大肌全力收縮將髖關節完全頂開，大腿與軀幹呈水平一條線。',
+      '【頂峰停頓】：頂端停留 1~2 秒，下巴微收雙眼直視前方（不後仰頭頸部）。',
+      '【下沉復位】：緩慢下沉髖部至離地約 15 公分處，隨即再次頂起。'
+    ],
+    cues: [
+      '常見代償：過度頂起導致腰椎反弓超伸（下背代償疼痛）；腳跟離地變成大腿前側發力。',
+      '呼吸節奏：下沉時吸氣，頂峰伸髖時用力吐氣。'
+    ]
+  },
+  'calf-raise': {
+    name: '站姿/坐姿提踵 (Calf Raise)',
+    primary: '腓腸肌 (站姿側重)、比目魚肌 (坐姿側重)',
+    secondary: '腳底足底筋膜',
+    setup: [
+      '前腳掌 1/3 踏在墊木或腳踏板邊緣，腳後跟完全懸空，身體維持直立。'
+    ],
+    execution: [
+      '【深度下沉】：腳後跟深沈至踏板下方，感受小腿肌腱完全被拉伸。',
+      '【向心提踵】：大腳趾球主動蹬地提起腳後跟至最高點，頂點保持 1 秒。'
+    ],
+    cues: [
+      '常見代償：膝蓋微彎借力彈跳，提踵幅度過小未達全行程。',
+      '呼吸節奏：蹬起時吐氣，下放拉伸時吸氣。'
+    ]
+  },
+
+  // 背部
+  'deadlift': {
+    name: '傳統硬舉 (Conventional Deadlift)',
+    primary: '豎脊肌、臀大肌、膕旁肌 (後側鏈之王)',
+    secondary: '背闊肌、斜方肌、前臂握力、全身核心',
+    setup: [
+      '雙腳站距與髖同寬，槓鈴中線對準足弓中央（距脛骨約 2.5 公分）。',
+      '屈髖俯身握槓，握距剛好在大腿兩側外緣，手臂垂直向下如掛鉤。',
+      '屈膝使脛骨輕觸槓鈴，挺胸沉肩，用力將肩胛骨向後向下鎖死（保護脊柱）。'
+    ],
+    execution: [
+      '【起槓推地】：腳掌全腳掌像要把地面踩穿一樣用力蹬地，槓鈴緊貼小腿上升。',
+      '【膝髖協同】：槓鈴過膝後，臀部強力向前推進（鎖定伸髖），站直身體與脊椎成一直線。',
+      '【下放軌跡】：沿原路徑屈髖先將臀部向後推，槓鈴過膝後再屈膝下放至地面。'
+    ],
+    cues: [
+      '常見代償：起槓時腰部駝圓（脊椎剪力爆表）；過度後仰腰椎鎖定；槓鈴離身體太遠。',
+      '呼吸節奏：拉起前深吸氣並腹內壓屏氣，拉起完全站直後或下放觸地時吐氣。'
+    ]
+  },
+  'sumo-deadlift': {
+    name: '相撲硬舉 (Sumo Deadlift)',
+    primary: '臀大肌、大腿內收肌群',
+    secondary: '股四頭肌、豎脊肌、背闊肌',
+    setup: [
+      '寬站距，雙腳盡量靠近槓鈴片，腳尖朝外 45°~60°，雙手握距窄於雙腿內側。',
+      '軀幹較傳統硬舉更為垂直，髖關節充分打開外旋。'
+    ],
+    execution: [
+      '【下沉撐髖】：向下坐並向外撐開膝蓋，收緊背闊肌拉緊槓鈴（去除槓鈴多餘空隙 slack）。',
+      '【蹬地展膝】：全腳掌垂直向外向斜下方踩穿地面，膝關節與髖關節同時伸展鎖死。'
+    ],
+    cues: [
+      '常見代償：起槓時屁股先向上飄；膝蓋在起拉時向內塌陷。',
+      '呼吸節奏：起拉前蓄滿腹內壓，鎖死後吐氣。'
+    ]
+  },
+  'barbell-row': {
+    name: '俯身槓鈴划船 (Barbell Row)',
+    primary: '背闊肌、中下斜方肌、菱形肌',
+    secondary: '三角肌後束、肱二頭肌、豎脊肌',
+    setup: [
+      '雙腳與肩同寬，屈髖俯身約 45 度（背部保持平直不駝背），雙膝微彎穩定下盤。',
+      '正握或反握槓鈴，握距略寬於肩，雙臂自然下垂。'
+    ],
+    execution: [
+      '【肘部引導】：背肌發力，手肘沿著身體兩側緊貼向後上方拉起，槓鈴軌跡拉向肚臍或下腹部。',
+      '【肩胛夾緊】：頂點用力將兩側肩胛骨向中央夾攏，停留 0.5 秒。',
+      '【離心下放】：吸氣控制槓鈴慢速下降，背闊肌維持緊繃張力直到手臂伸直。'
+    ],
+    cues: [
+      '常見代償：利用軀幹上下甩動借力（腰椎受傷主因）；聳肩將受力轉移到上斜方肌。',
+      '呼吸節奏：拉起發力時吐氣，下放槓鈴時吸氣。'
+    ]
+  },
+  'lat-pulldown': {
+    name: '高位滑輪下拉 (Lat Pulldown)',
+    primary: '背闊肌 (增加背部寬度)',
+    secondary: '大圓肌、菱形肌、肱二頭肌',
+    setup: [
+      '大腿護墊調整至緊緊卡牢雙腿，雙手握寬握把折彎處外側，胸部挺拔，軀幹微後傾 10~15 度。'
+    ],
+    execution: [
+      '【肩胛先行】：下拉前先做肩胛骨下沉（Depression），啟動背闊肌下部。',
+      '【肘向下拉】：想像手肘像向下插進褲子後口袋一樣向下拉，握把拉至鎖骨或上胸高度。',
+      '【頂峰擠壓】：在胸前停頓 1 秒，肩胛骨完全收縮夾緊。',
+      '【勻速放回】：2~3秒控制還原，手臂伸直但肩胛骨不完全脫臼放鬆。'
+    ],
+    cues: [
+      '常見代償：後仰幅度過大（變成仰臥划船）；用手腕向前扣借力。',
+      '呼吸節奏：下拉時挺胸吐氣，還原上升時吸氣。'
+    ]
+  },
+  'pull-up': {
+    name: '引體向上 (Pull-Up)',
+    primary: '背闊肌、大圓肌 (自重黃金訓練)',
+    secondary: '肱二頭肌、肱肌、核心肌群',
+    setup: [
+      '雙手正握單槓，握距約 1.5 倍肩寬，身體完全懸掛，腹肌微收避免身體擺盪。'
+    ],
+    execution: [
+      '【肩胛下壓】：先主動下沉肩胛骨，帶動手肘向身體兩側後下方猛烈拉動。',
+      '【胸口迎槓】：身體向斜上方拉起，直至下巴過槓或上胸貼近單槓。',
+      '【離心下沉】：均勻控制下放身體至手臂幾乎完全伸直，避免重重落下震傷肩關節。'
+    ],
+    cues: [
+      '常見代償：雙腿屈膝踢蹬借力（甩腿）；弓背縮脖子去勾單槓。',
+      '呼吸節奏：拉起身體時用力吐氣，下放時吸氣。'
+    ]
+  },
+  'seated-cable-row': {
+    name: '坐姿滑輪划船 (Seated Cable Row)',
+    primary: '背闊肌厚度、菱形肌、中斜方肌',
+    secondary: '肱二頭肌、三角肌後束',
+    setup: [
+      '雙腳踩緊腳踏板，雙膝微彎，握住 V 型手把，軀幹保持垂直於地面。'
+    ],
+    execution: [
+      '【後拉夾背】：挺胸肩胛後縮，手肘貼緊軀幹拉向肚臍，頂點用力夾背 1 秒。',
+      '【離心延伸】：手臂向前伸展送出，肩胛骨向前滑動充分拉長背部，但腰背不大幅彎曲。'
+    ],
+    cues: [
+      '常見代償：身體過度前後搖擺借力，拉動時聳肩。',
+      '呼吸節奏：後拉時吐氣，前送時吸氣。'
+    ]
+  },
+  't-bar-row': {
+    name: 'T槓划船 (T-Bar Row)',
+    primary: '背部中縫厚度、菱形肌、背闊肌',
+    secondary: '三角肌後束、豎脊肌',
+    setup: [
+      '雙腳跨立於 T 槓兩側，膝蓋微彎，髖後推屈身約 45 度，背平雙手扣緊把手。'
+    ],
+    execution: [
+      '【爆發拉起】：腹部緊繃，手肘引導將 T 槓拉向胸腹交界處，肩胛骨劇烈合攏。',
+      '【離心慢放】：下落保持 2 秒控制，感受背肌厚度被拉開。'
+    ],
+    cues: [
+      '常見代償：重量過重導致腰部過度反曲或駝背；動作幅度縮短成微幅抖動。',
+      '呼吸節奏：拉起吐氣，下沉吸氣。'
+    ]
+  },
+  'db-row': {
+    name: '單臂啞鈴划船 (One-Arm DB Row)',
+    primary: '背闊肌單側孤立發展',
+    secondary: '菱形肌、肱二頭肌',
+    setup: [
+      '一側膝蓋與手掌支撐於平板凳上，另一腳踩地支撐，軀幹與地面近乎平行。'
+    ],
+    execution: [
+      '【弧形拉起】：手持啞鈴自然下垂，手肘朝著骨盆臀部方向呈弧形向後拉起。',
+      '【頂點收縮】：大臂拉至略高於軀幹水平，背闊肌下束完全擠壓。'
+    ],
+    cues: [
+      '常見代償：軀幹大幅旋轉（靠腰部扭轉借力）；手腕彎曲過度使用前臂。',
+      '呼吸節奏：拉至頂點吐氣，下放時吸氣。'
+    ]
+  },
+  'face-pull': {
+    name: '繩索面拉 (Face Pull)',
+    primary: '三角肌後束、菱形肌、外旋肌群 (肩關節保健神器)',
+    secondary: '中下斜方肌',
+    setup: [
+      '將滑輪調至頭部或眼睛高度，使用雙頭繩索，拇指朝向自己或反握手柄。'
+    ],
+    execution: [
+      '【外旋拉開】：手肘抬高向外拉開繩索，雙手分開拉向雙眼兩側或太陽穴。',
+      '【外旋鎖定】：頂點做肩外旋動作（拳頭向後上方翻轉），夾緊後肩與上背 1 秒。'
+    ],
+    cues: [
+      '常見代償：手肘低於手腕（變成二頭肌彎舉）；身體後仰借力。',
+      '呼吸節奏：後拉時吐氣，前送時吸氣。'
+    ]
+  },
+  'straight-arm-pulldown': {
+    name: '直臂滑輪下壓 (Straight-Arm Pulldown)',
+    primary: '背闊肌孤立長度伸展',
+    secondary: '大圓肌、胸小肌、肱三頭肌長頭',
+    setup: [
+      '面對滑輪退後一步，雙手握直槓或繩索，手臂微屈鎖定關節角度，軀幹前傾約 30 度。'
+    ],
+    execution: [
+      '【弧形下壓】：手肘固定微屈不變，背闊肌全力下壓手臂，沿大弧線下壓至大腿前側。',
+      '【頂端挺胸】：下壓到底時挺胸收緊肩胛，感受背闊肌下緣強力收縮。'
+    ],
+    cues: [
+      '常見代償：手肘彎曲伸展變成三頭下壓；核心鬆弛造成腰椎擺動。',
+      '呼吸節奏：下壓時吐氣，回升時吸氣。'
+    ]
+  },
+
+  // 肩部
+  'ohp': {
+    name: '槓鈴站姿肩推 (Overhead Press)',
+    primary: '前三角肌、中三角肌',
+    secondary: '肱三頭肌、斜方肌、核心肌群',
+    setup: [
+      '槓鈴架於胸骨上端鎖骨處，雙手握距略寬於肩，小臂垂直地面。',
+      '雙腳與肩同寬踩實地面，核心繃緊，臀大肌夾死，維持軀幹如鋼板般堅固。'
+    ],
+    execution: [
+      '【垂直推起】：頭部微向後仰避開槓鈴軌跡，三角肌主動發力垂直向上推起槓鈴。',
+      '【頭部穿過】：槓鈴過頭頂後，頭部自然向前回到中立位，槓鈴鎖定在耳朵正上方。',
+      '【頂點支撐】：手臂伸直，斜方肌主動上提聳起包覆肩關節，穩定 0.5 秒。'
+    ],
+    cues: [
+      '常見代償：下背過度反弓塌腰（極易傷腰）；手肘向後滑落導致肩部剪力增加。',
+      '呼吸節奏：推起前深吸氣蓄壓，推至頂點鎖定後吐氣。'
+    ]
+  },
+  'db-shoulder-press': {
+    name: '坐姿啞鈴肩推 (DB Shoulder Press)',
+    primary: '前三角肌、中三角肌',
+    secondary: '肱三頭肌',
+    setup: [
+      '椅背微傾斜 75°~80°（避免完全 90° 直角造成肩峰壓迫），雙手用膝蓋頂起啞鈴至肩膀兩側。'
+    ],
+    execution: [
+      '【推舉上升】：手肘朝兩側略偏前方（約肩胛骨平面 30 度），向上推起啞鈴至頭頂。',
+      '【離心下沉】：慢速 2 秒下沉啞鈴至耳旁水平，維持肩膀持續張力。'
+    ],
+    cues: [
+      '常見代償：手肘完全打開 180 度大字型推舉（易導致肩夾擠）；啞鈴頂部猛烈碰撞。',
+      '呼吸節奏：推起時吐氣，下落時吸氣。'
+    ]
+  },
+  'lateral-raise': {
+    name: '啞鈴側平舉 (DB Lateral Raise)',
+    primary: '中三角肌 (打造倒三角寬肩膀核心動作)',
+    secondary: '前三角肌、上斜方肌',
+    setup: [
+      '雙手持啞鈴於身體兩側或大腿前方，雙腳與肩同寬，軀幹微前傾約 10~15 度。'
+    ],
+    execution: [
+      '【手肘引導】：手肘微屈約 15 度並在整個過程中鎖定，手肘引導啞鈴向兩側斜前方抬起（肩胛骨平面）。',
+      '【抬至水平】：抬至手肘與肩膀同高水平線即可，小拇指微向上旋轉（如倒水）。',
+      '【離心慢放】：2~3秒控制緩慢下放，在啞鈴觸碰大腿前立刻再度抬起。'
+    ],
+    cues: [
+      '常見代償：聳肩借力（上斜方肌代償變酸）；利用雙腿屈伸彈跳甩重量。',
+      '呼吸節奏：向兩側抬起時吐氣，下放慢控時吸氣。'
+    ]
+  },
+  'cable-lateral-raise': {
+    name: '繩索側平舉 (Cable Lateral Raise)',
+    primary: '中三角肌 (全程等張力刺激)',
+    secondary: '前三角肌',
+    setup: [
+      '滑輪調整至手腕或腳踝高度，側對滑輪機，單手握把手，身體微向外傾斜。'
+    ],
+    execution: [
+      '【外展發力】：中三角肌發力向斜外側上方拉出把手至肩膀水平高度。',
+      '【全程張力】：頂峰停頓 1 秒，下放時滑輪拉力持續對肌肉施加恆定阻力。'
+    ],
+    cues: [
+      '常見代償：軀幹向後仰甩動借力；手腕高於手肘。',
+      '呼吸節奏：抬起時吐氣，還原時吸氣。'
+    ]
+  },
+  'reverse-pec-deck': {
+    name: '蝴蝶機反向飛鳥 (Reverse Pec Deck)',
+    primary: '三角肌後束 (立體肩部關鍵)',
+    secondary: '菱形肌、中下斜方肌',
+    setup: [
+      '胸口貼緊靠板，座椅調至握把高度對齊肩膀水平線，雙手掌心相對或朝下。'
+    ],
+    execution: [
+      '【水平外展】：手肘微屈鎖定，三角肌後束發力將把手向兩側後方拉開。',
+      '【後束擠壓】：拉至大臂與軀幹平行即可，避免過度後縮肩胛骨導致背肌搶走張力。'
+    ],
+    cues: [
+      '常見代償：聳肩；後背菱形肌主動過度夾緊使後肩失去孤立張力。',
+      '呼吸節奏：向後展開時吐氣，向前還原時吸氣。'
+    ]
+  },
+  'upright-row': {
+    name: '槓鈴/啞鈴直立划船 (Upright Row)',
+    primary: '中三角肌、斜方肌',
+    secondary: '前三角肌、肱二頭肌',
+    setup: [
+      '握距略寬於肩（窄握易傷肩），槓鈴貼近身體前方，沉肩鎖背。'
+    ],
+    execution: [
+      '【手肘引導提拉】：手肘引導向上提拉，拉至胸口高度（手肘略高於前臂）。',
+      '【下放延伸】：控制節奏慢下放至手臂自然伸直。'
+    ],
+    cues: [
+      '常見代償：握距太窄且拉得過高（高於胸骨）易引發肩夾擠綜合症。',
+      '呼吸節奏：向上提拉時吐氣，下放時吸氣。'
+    ]
+  },
+  'arnold-press': {
+    name: '阿諾肩推 (Arnold Press)',
+    primary: '前三角肌、中三角肌 (全角度旋轉刺激)',
+    secondary: '肱三頭肌',
+    setup: [
+      '坐姿手持啞鈴於胸前，掌心朝向自己，手肘緊貼軀幹。'
+    ],
+    execution: [
+      '【邊旋邊推】：向上推起的同時向外旋轉大臂，推至頂點時掌心朝前。',
+      '【旋轉還原】：下放時沿原路徑旋轉收回胸前掌心朝內。'
+    ],
+    cues: [
+      '常見代償：重量過大造成手腕失衡扭傷。',
+      '呼吸節奏：旋轉推起吐氣，還原吸氣。'
+    ]
+  },
+
+  // 手臂
+  'bicep-curl': {
+    name: '啞鈴/槓鈴彎舉 (Bicep Curl)',
+    primary: '肱二頭肌 (長頭與短頭)',
+    secondary: '肱肌、前臂屈肌群',
+    setup: [
+      '站姿雙腳與肩同寬，手持槓鈴或啞鈴垂於大腿前，手肘緊貼身體兩側，沉肩鎖定。'
+    ],
+    execution: [
+      '【向上彎屈】：手肘為軸心，二頭肌主動發力向上彎舉重量，頂端掌心向上旋後。',
+      '【頂峰擠壓】：在最高點強力擠壓二頭肌 1 秒，但手肘不上抬借力。',
+      '【離心慢放】：2~3秒控制緩慢放至手臂自然下垂。'
+    ],
+    cues: [
+      '常見代償：身體前後甩動借力（腰椎代償）；手肘向前大幅移動（前三角肌代償搶力）。',
+      '呼吸節奏：向上彎舉時吐氣，離心慢放時吸氣。'
+    ]
+  },
+  'hammer-curl': {
+    name: '啞鈴槌式彎舉 (Hammer Curl)',
+    primary: '肱橈肌、肱肌 (增加上臂厚度與前臂粗壯度)',
+    secondary: '肱二頭肌長頭',
+    setup: [
+      '雙手掌心相對（中立握姿），手持啞鈴垂於兩側，腰背平直。'
+    ],
+    execution: [
+      '【垂直上提】：大臂固定，掌心相對保持不變向上彎起啞鈴至胸前水平。',
+      '【頂端頂峰】：收縮 1 秒後勻速下放。'
+    ],
+    cues: [
+      '常見代償：手腕下垂無力；手肘向兩側外展。',
+      '呼吸節奏：彎起吐氣，下放吸氣。'
+    ]
+  },
+  'incline-curl': {
+    name: '上斜啞鈴彎舉 (Incline DB Curl)',
+    primary: '肱二頭肌長頭 (打造飽滿肌峰)',
+    secondary: '肱肌',
+    setup: [
+      '躺在 45°~60° 斜椅上，雙臂自然垂直向下懸垂，讓長頭處於被動拉伸狀態。'
+    ],
+    execution: [
+      '【孤立彎舉】：大臂固定垂直地面不動，二頭肌長頭強烈收縮向上彎起啞鈴。',
+      '【充分拉長】：還原時下放至手臂完全伸展拉長。'
+    ],
+    cues: [
+      '常見代償：肩膀向前送出借力；頭部離開椅背。',
+      '呼吸節奏：彎舉時吐氣，下沉拉伸時吸氣。'
+    ]
+  },
+  'tricep-pushdown': {
+    name: '滑輪三頭肌下壓 (Tricep Pushdown)',
+    primary: '肱三頭肌 (外側頭、內側頭)',
+    secondary: '肱三頭肌長頭',
+    setup: [
+      '雙手握直槓、V槓或繩索，大臂緊緊夾在身體兩側肋骨旁，軀幹微前傾。'
+    ],
+    execution: [
+      '【下壓鎖死】：大臂完全固定不動，三頭肌發力伸展小臂向下壓直。',
+      '【頂峰擠壓】：在最底端將手臂完全伸直，三頭肌強烈收縮鎖死 1 秒（繩索可向兩側分開）。',
+      '【回放控制】：小臂勻速抬至略高於水平位置（約90度），大臂不晃動。'
+    ],
+    cues: [
+      '常見代償：用體重向下壓（俯身壓槓）；大臂前後擺動如划船借力。',
+      '呼吸節奏：下壓伸直時吐氣，回放彎曲時吸氣。'
+    ]
+  },
+  'skull-crusher': {
+    name: '仰臥臂屈伸/碎顱者 (Skull Crusher)',
+    primary: '肱三頭肌長頭與中束',
+    secondary: '肘肌',
+    setup: [
+      '平躺於臥推凳上，雙手窄握曲槓或啞鈴，大臂朝向頭頂微傾斜 15 度（維持長頭持續張力）。'
+    ],
+    execution: [
+      '【屈肘下落】：保持大臂傾斜角不動，屈曲手肘將槓鈴慢速降至頭頂後方或額頭上方。',
+      '【伸肘推起】：三頭肌集中發力將手臂伸展推回起始位置。'
+    ],
+    cues: [
+      '常見代償：手肘向兩側大幅外外展（應盡量向內夾）；槓鈴直接降在額頭上增加受傷風險。',
+      '呼吸節奏：屈肘下放時吸氣，推起伸直時吐氣。'
+    ]
+  },
+  'overhead-tricep-extension': {
+    name: '繩索過頭臂屈伸 (Overhead Extension)',
+    primary: '肱三頭肌長頭 (最深層拉伸)',
+    secondary: '外側頭',
+    setup: [
+      '背對滑輪機，將繩索拉至頭後方，手肘朝前收攏，上臂貼近雙耳兩側。'
+    ],
+    execution: [
+      '【過頭伸展】：三頭肌長頭收縮帶動小臂向前上方伸直展開繩索。',
+      '【深層拉回】：慢速還原至頭後方，感受長頭如皮筋般被充分拉長。'
+    ],
+    cues: [
+      '常見代償：腰部過度反弓塌腰；手肘向兩側外散。',
+      '呼吸節奏：向前伸展時吐氣，拉回時吸氣。'
+    ]
+  },
+
+  // 核心
+  'hanging-leg-raise': {
+    name: '懸垂舉腿 (Hanging Leg Raise)',
+    primary: '腹直肌下部、髂腰肌',
+    secondary: '前臂握力、腹斜肌',
+    setup: [
+      '雙手懸掛在單槓上，身體自然放直，骨盆微後傾收緊核心。'
+    ],
+    execution: [
+      '【骨盆捲起】：主動捲動骨盆向上翻，將雙腿（或屈膝）舉至大腿高於水平線。',
+      '【頂點收腹】：在頂點停頓 1 秒，腹部緊緊收縮。',
+      '【離心慢放】：緩慢放低雙腿，避免利用回彈慣性擺動。'
+    ],
+    cues: [
+      '常見代償：純粹甩腿而骨盆未捲動（僅練到髖屈肌而非腹肌）。',
+      '呼吸節奏：舉腿時呼氣，下放時吸氣。'
+    ]
+  },
+  'ab-wheel': {
+    name: '健腹輪 (Ab Wheel Rollout)',
+    primary: '腹直肌整體、腹橫肌 (深層核心力量)',
+    secondary: '背闊肌、胸肌',
+    setup: [
+      '雙膝跪地，雙手握緊滾輪握把，骨盆後傾微收下巴，背部維持微拱貓背姿勢。'
+    ],
+    execution: [
+      '【向前推出】：核心抗伸展發力，向前緩慢推動滾輪至張力極限位置。',
+      '【腹肌拉回】：腹肌強力收縮發力，帶動滾輪拉回起始位置。'
+    ],
+    cues: [
+      '常見代償：向前推時塌腰骨盆前傾（會給腰椎帶來極大剪力傷害）。',
+      '呼吸節奏：推出時吸氣收緊腹內壓，拉回時用力吐氣。'
+    ]
+  },
+  'plank': {
+    name: '平板支撐 (Plank)',
+    primary: '腹橫肌、腹直肌、全身深層抗伸展核心',
+    secondary: '臀大肌、肩胛穩定肌群',
+    setup: [
+      '手肘撐地於肩膀正下方，雙腳與髖同寬，頭部、脊椎、臀部成一直線。'
+    ],
+    execution: [
+      '【主動張力】：手肘與腳尖主動向中間收攏對抗地面，臀大肌夾緊，骨盆維持微後傾。'
+    ],
+    cues: [
+      '常見代償：塌腰撅屁股；低頭或過度仰頭破壞頸椎中立。',
+      '呼吸節奏：維持核心緊繃的同時進行淺長均勻腹式呼吸。'
+    ]
+  }
+};
+
+// 兜底通用指南產生器 (Fallback: 確保任意自訂動作皆有專業指導)
+function getExerciseGuide(exerciseId, exerciseName, category = '胸部') {
+  if (EXERCISE_GUIDES[exerciseId]) {
+    return EXERCISE_GUIDES[exerciseId];
+  }
+
+  // 嘗試動作名稱模糊匹配
+  for (const [key, guide] of Object.entries(EXERCISE_GUIDES)) {
+    if (exerciseName && (exerciseName.includes(guide.name.split(' ')[0]) || guide.name.includes(exerciseName))) {
+      return guide;
+    }
+  }
+
+  // 根據肌群產生專業通用指南
+  const muscleDefaults = {
+    '胸部': {
+      primary: '胸大肌 (依角度包含上束、中束或下束)',
+      secondary: '前三角肌、肱三頭肌',
+      setup: [
+        '調整器械或臥推椅至穩定位置，沉肩收核心，肩胛骨向後向下鎖死貼牢支撐面。',
+        '手腕保持中立挺直，虎口握實握把或槓鈴，手肘內夾約 45°~70°（切忌90°垂直外展）。'
+      ],
+      execution: [
+        '【離心下放】：吸氣控制 2~3 秒勻速下降，感受胸大肌纖維被充分拉伸，配重不猛烈碰撞。',
+        '【向心推起】：胸部主動發力向內收攏推動重量，頂峰收縮停留 1 秒，手肘微屈不完全鎖死。'
+      ],
+      cues: [
+        '關鍵代償：切忌聳肩或探頭代償；推起時肩胛骨勿脫離靠墊。',
+        '呼吸原則：離心下放時吸氣，向心推擠用力時均勻吐氣。'
+      ]
+    },
+    '背部': {
+      primary: '背闊肌、斜方肌、菱形肌',
+      secondary: '肱二頭肌、三角肌後束、豎脊肌',
+      setup: [
+        '調整座椅或站位，保持脊柱中立，雙腳穩固支撐，胸口微挺引導核心收緊。',
+        '先以手肘引導方向，起步前先啟動肩胛骨向後向下收縮（肩胛骨先行原則）。'
+      ],
+      execution: [
+        '【向心拉動】：背肌主導發力，以手肘為引導向後下方拉動，頂點兩側肩胛骨劇烈夾攏 1 秒。',
+        '【離心延伸】：2~3秒控制勻速送回重量，感受背闊肌被充分拉長延伸，但腰椎維持平直。'
+      ],
+      cues: [
+        '關鍵代償：切勿利用軀幹甩動借力；手腕避免向前彎扣。',
+        '呼吸原則：向後拉起時挺胸吐氣，向前送出時深吸氣。'
+      ]
+    },
+    '腿部': {
+      primary: '股四頭肌、臀大肌、大腿後側膕旁肌',
+      secondary: '內收肌群、小腿肌群、核心肌群',
+      setup: [
+        '確認雙腳踩實地面或踏板，足跟始終不可懸空，膝蓋對準腳尖朝向（微外展）。',
+        '吸氣鼓起腹部啟動腹內壓，下背緊貼靠板或維持脊椎自然生理弧度。'
+      ],
+      execution: [
+        '【下蹲/彎曲】：屈髖屈膝平穩下沉，保持膝關節朝腳尖方向推開不內扣，下蹲至大腿與地面或踏板平行。',
+        '【推起/蹬伸】：全腳掌均勻蹬地發力站起或推動，頂點膝關節維持微屈，嚴禁膝關節反折鎖死！'
+      ],
+      cues: [
+        '關鍵代償：膝蓋內扣（X腿代償）；骨盆過度後捲導致腰椎代償。',
+        '呼吸原則：下沉時深吸蓄積腹內壓，推升過黏滯點後順勢吐氣。'
+      ]
+    },
+    '肩部': {
+      primary: '三角肌 (前束、中束、後束)',
+      secondary: '上斜方肌、肱三頭肌',
+      setup: [
+        '站姿或坐姿保持腰背挺拔，核心收緊，避免下背過度反弓塌腰。',
+        '手肘微屈約 15°，在肩胛骨平面（前傾約 15°~30°）進行動作，避免純冠狀面外展壓迫肩峰。'
+      ],
+      execution: [
+        '【向心發力】：三角肌主動發力帶動手肘抬起或推舉，動作頂點維持 1 秒頂峰收縮。',
+        '【離心慢控】：勻速 2 秒下放，肌肉保持持續張力，不在底端完全放鬆。'
+      ],
+      cues: [
+        '關鍵代償：聳肩使上斜方肌代償變酸；利用軀幹後仰甩動。',
+        '呼吸原則：發力抬起時吐氣，下放控制時吸氣。'
+      ]
+    },
+    '手臂': {
+      primary: '肱二頭肌 / 肱三頭肌',
+      secondary: '前臂肌群',
+      setup: [
+        '大臂始終緊貼軀幹或固定在托板上，手肘作為唯一旋轉軸心，避免大臂前後晃動。',
+        '手腕維持中立剛硬，不前後甩腕。'
+      ],
+      execution: [
+        '【向心收縮】：目標手臂肌群主動發力完成關節屈伸，頂峰極度擠壓 1 秒。',
+        '【離心還原】：2~3秒勻速下放還原至微屈位，保持張力不消失。'
+      ],
+      cues: [
+        '關鍵代償：身體前後擺動借力；大臂離開固定點搶力。',
+        '呼吸原則：用力收縮時吐氣，緩慢還原時吸氣。'
+      ]
+    },
+    '核心': {
+      primary: '腹直肌、腹橫肌、腹斜肌',
+      secondary: '豎脊肌、髖屈肌群',
+      setup: [
+        '骨盆主動維持微後傾，收緊肚臍向脊椎方向貼靠，避免腰部懸空。'
+      ],
+      execution: [
+        '【腹肌捲動】：以腹部收縮帶動骨盆或胸骨捲動，頂點停留 1 秒強力擠壓。',
+        '【離心抗伸展】：慢速控制還原，核心始終維持腹內壓緊繃。'
+      ],
+      cues: [
+        '關鍵代償：脖子過度發力酸痛（應收下巴）；塌腰代償。',
+        '呼吸原則：腹肌用力捲縮時徹底吐氣，還原時均勻吸氣。'
+      ]
+    }
+  };
+
+  const matched = muscleDefaults[category] || muscleDefaults['胸部'];
+  return {
+    name: exerciseName || '自訂動作',
+    primary: matched.primary,
+    secondary: matched.secondary,
+    setup: matched.setup,
+    execution: matched.execution,
+    cues: matched.cues
+  };
+}
+
+// ======================= 2. Form Check 影片與要訣資料庫 (IndexedDB) =======================
+const DB_NAME = 'ironlog_videos_db';
+const DB_VERSION = 1;
+const STORE_NAME = 'exercise_media';
+
+class FormCheckDB {
+  constructor() {
+    this.db = null;
+    this.initPromise = null;
+    this.boundVideoIds = new Set();
+  }
+
+  async init() {
+    if (this.db) return this.db;
+    if (this.initPromise) return this.initPromise;
+
+    this.initPromise = new Promise((resolve) => {
+      if (!window.indexedDB) {
+        console.warn('IndexedDB not supported');
+        resolve(null);
+        return;
+      }
+      const req = indexedDB.open(DB_NAME, DB_VERSION);
+      req.onupgradeneeded = (e) => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains(STORE_NAME)) {
+          db.createObjectStore(STORE_NAME, { keyPath: 'exerciseId' });
+        }
+      };
+      req.onsuccess = (e) => {
+        this.db = e.target.result;
+        this.refreshCache().then(() => resolve(this.db));
+      };
+      req.onerror = (e) => {
+        console.warn('IndexedDB open error:', e);
+        resolve(null);
+      };
+    });
+
+    return this.initPromise;
+  }
+
+  async refreshCache() {
+    if (!this.db) return;
+    return new Promise((resolve) => {
+      try {
+        const tx = this.db.transaction(STORE_NAME, 'readonly');
+        const store = tx.objectStore(STORE_NAME);
+        const req = store.getAll();
+        req.onsuccess = () => {
+          this.boundVideoIds.clear();
+          (req.result || []).forEach(item => {
+            if (item && (item.blob || (item.url && item.url.trim()))) {
+              this.boundVideoIds.add(item.exerciseId);
+            }
+          });
+          resolve();
+        };
+        req.onerror = () => resolve();
+      } catch (e) {
+        resolve();
+      }
+    });
+  }
+
+  hasVideo(exerciseId) {
+    return this.boundVideoIds.has(exerciseId);
+  }
+
+  async get(exerciseId) {
+    await this.init();
+    if (!this.db) return null;
+    return new Promise((resolve) => {
+      try {
+        const tx = this.db.transaction(STORE_NAME, 'readonly');
+        const store = tx.objectStore(STORE_NAME);
+        const req = store.get(exerciseId);
+        req.onsuccess = () => resolve(req.result || null);
+        req.onerror = () => resolve(null);
+      } catch (e) {
+        resolve(null);
+      }
+    });
+  }
+
+  async set(exerciseId, data) {
+    await this.init();
+    if (!this.db) return;
+    return new Promise((resolve, reject) => {
+      try {
+        const tx = this.db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        const record = { exerciseId, ...data, updatedAt: Date.now() };
+        const req = store.put(record);
+        req.onsuccess = () => {
+          if (data.blob || (data.url && data.url.trim())) {
+            this.boundVideoIds.add(exerciseId);
+          } else {
+            this.boundVideoIds.delete(exerciseId);
+          }
+          resolve();
+        };
+        req.onerror = (e) => reject(e);
+      } catch (e) {
+        reject(e);
+      }
+    });
+  }
+
+  async removeVideo(exerciseId) {
+    const existing = await this.get(exerciseId) || { exerciseId };
+    existing.blob = null;
+    existing.url = '';
+    await this.set(exerciseId, existing);
+    this.boundVideoIds.delete(exerciseId);
+  }
+
+  async clearAll() {
+    await this.init();
+    if (!this.db) return;
+    return new Promise((resolve) => {
+      try {
+        const tx = this.db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        const req = store.clear();
+        req.onsuccess = () => {
+          this.boundVideoIds.clear();
+          resolve();
+        };
+        req.onerror = () => resolve();
+      } catch (e) {
+        resolve();
+      }
+    });
+  }
+}
+const formCheckDB = new FormCheckDB();
 
 const DEFAULT_ROUTINES = [
   {
@@ -466,11 +1529,17 @@ function renderWorkoutSheet() {
   const pct = totalSets > 0 ? Math.round((completedSets / totalSets) * 100) : 0;
   progressText.textContent = `${completedSets} / ${totalSets} 組 (${pct}%)`;
 
-  // 完成按鈕防呆：未完成 1 組時鎖定
-  if (completedSets === 0) {
+  // 完成按鈕防呆與狀態更新：禁止永久鎖死，支援加練後更新
+  if (state.activeWorkout.isTodayFinished) {
+    finishBtn.classList.remove('opacity-50', 'pointer-events-none');
+    finishBtn.innerHTML = `<i data-lucide="check-check" class="w-4 h-4 stroke-[3] text-accent-amber"></i> 今日已歸檔 (點擊更新)`;
+  } else if (completedSets === 0) {
     finishBtn.classList.add('opacity-50');
+    finishBtn.classList.remove('pointer-events-none');
+    finishBtn.innerHTML = `<i data-lucide="check" class="w-4 h-4 stroke-[3]"></i> 完成今日訓練 (歸檔)`;
   } else {
-    finishBtn.classList.remove('opacity-50');
+    finishBtn.classList.remove('opacity-50', 'pointer-events-none');
+    finishBtn.innerHTML = `<i data-lucide="check" class="w-4 h-4 stroke-[3]"></i> 完成今日訓練 (歸檔)`;
   }
 
   // 渲染動態部位熱身
@@ -494,6 +1563,7 @@ function renderWorkoutSheet() {
   state.activeWorkout.exercises.forEach((item, exIdx) => {
     const exObj = state.exercises.find(e => e.id === item.exerciseId) || { name: '自訂動作', isCompound: false };
     const ghost = getExerciseGhostData(item.exerciseId);
+    const hasVideo = formCheckDB.hasVideo(item.exerciseId);
 
     const card = document.createElement('div');
     card.className = 'bg-iron-900 border border-iron-800 rounded-2xl p-4 shadow-xl space-y-3';
@@ -504,8 +1574,11 @@ function renderWorkoutSheet() {
       <!-- 動作標題、負重模式、快捷工具列 -->
       <div class="space-y-1.5 pb-2 border-b border-iron-800/80">
         <div class="flex items-start justify-between">
-          <div>
-            <h3 class="font-extrabold text-white text-base tracking-tight">${exObj.name}</h3>
+          <div class="cursor-pointer" data-action="open-guide" data-ex-index="${exIdx}" data-ex-id="${item.exerciseId}">
+            <div class="flex items-center gap-1.5">
+              <h3 class="font-extrabold text-white text-base tracking-tight hover:text-accent-green transition">${exObj.name}</h3>
+              <i data-lucide="book-open" class="w-3.5 h-3.5 text-accent-green/70"></i>
+            </div>
             <div class="flex items-center gap-1.5 mt-0.5 text-xs">
               <span class="text-slate-400 font-mono text-[11px]">${ghostStr}</span>
               <!-- 單邊(×2)切換 -->
@@ -521,8 +1594,16 @@ function renderWorkoutSheet() {
             </div>
           </div>
 
-          <!-- 工具按鈕列 -->
+          <!-- 工具按鈕列 (指南、側拍影片、熱身、替換、刪除) -->
           <div class="flex items-center gap-1">
+            <button data-action="open-guide" data-ex-index="${exIdx}" data-ex-id="${item.exerciseId}" class="p-1.5 rounded-lg bg-iron-800 hover:bg-iron-750 text-slate-300 hover:text-accent-green text-xs flex items-center gap-1 tap-active" title="查看動作示範與指南">
+              <i data-lucide="book-open" class="w-3.5 h-3.5 text-accent-green"></i>
+              <span class="text-[10px] font-bold">指南</span>
+            </button>
+            <button data-action="open-video" data-ex-index="${exIdx}" data-ex-id="${item.exerciseId}" class="p-1.5 rounded-lg text-xs flex items-center gap-1 tap-active transition ${hasVideo ? 'bg-accent-green/20 text-accent-green border border-accent-green/40 shadow-sm shadow-accent-green/20' : 'bg-iron-800 hover:bg-iron-750 text-slate-400'}" title="Form Check 側拍影片與要訣">
+              <i data-lucide="video" class="w-3.5 h-3.5 ${hasVideo ? 'text-accent-green fill-accent-green/20' : ''}"></i>
+              <span class="text-[10px] font-bold">${hasVideo ? '影片' : '側拍'}</span>
+            </button>
             ${exObj.isCompound ? `
               <button data-action="generate-warmup" data-ex-index="${exIdx}" class="p-1.5 rounded-lg bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 text-xs font-bold flex items-center gap-1 tap-active" title="產生熱身組">
                 <i data-lucide="flame" class="w-3.5 h-3.5"></i>
@@ -1420,16 +2501,46 @@ function renderWorkoutSessionsList() {
 
 // ======================= 9. HTML5 Canvas 成果分享卡片生成 =======================
 
+function drawCanvasRoundRect(ctx, x, y, width, height, radius, fillStyle, strokeStyle) {
+  ctx.save();
+  ctx.beginPath();
+  if (typeof ctx.roundRect === 'function') {
+    ctx.roundRect(x, y, width, height, radius);
+  } else {
+    ctx.moveTo(x + radius, y);
+    ctx.arcTo(x + width, y, x + width, y + height, radius);
+    ctx.arcTo(x + width, y + height, x, y + height, radius);
+    ctx.arcTo(x, y + height, x, y, radius);
+    ctx.arcTo(x, y, x + width, y, radius);
+    ctx.closePath();
+  }
+  if (fillStyle) {
+    ctx.fillStyle = fillStyle;
+    ctx.fill();
+  }
+  if (strokeStyle) {
+    ctx.strokeStyle = strokeStyle;
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 function openWorkoutSummaryModal(session) {
   const modal = document.getElementById('shareCardModal');
   const canvas = document.getElementById('summaryCardCanvas');
   const ctx = canvas.getContext('2d');
 
-  // 繪製黑底硬派海報風格結算圖 (600 x 750)
-  ctx.fillStyle = '#070a10';
-  ctx.fillRect(0, 0, 600, 750);
+  const exercises = (session.exercises && session.exercises.length > 0) ? session.exercises : [];
+  const dynamicHeight = Math.max(680, 360 + exercises.length * 68 + 70);
 
-  // 頂部金屬邊框與裝飾線
+  canvas.width = 600;
+  canvas.height = dynamicHeight;
+
+  // 1. 純黑硬派底色
+  ctx.fillStyle = '#070a10';
+  ctx.fillRect(0, 0, 600, dynamicHeight);
+
+  // 2. 頂部炫光漸層裝飾條
   const grad = ctx.createLinearGradient(0, 0, 600, 0);
   grad.addColorStop(0, '#10b981');
   grad.addColorStop(0.5, '#f59e0b');
@@ -1437,71 +2548,79 @@ function openWorkoutSummaryModal(session) {
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, 600, 6);
 
-  // Logo 與品牌標題
+  // 3. Logo 與副標
   ctx.fillStyle = '#ffffff';
   ctx.font = '900 24px monospace';
-  ctx.fillText('IRONLOG PRO', 40, 50);
+  ctx.fillText('IRONLOG PRO', 40, 52);
 
   ctx.fillStyle = '#94a3b8';
-  ctx.font = '600 14px sans-serif';
-  ctx.fillText('WORKOUT SUMMARY REPORT', 40, 72);
+  ctx.font = '700 13px sans-serif';
+  ctx.fillText('WORKOUT SUMMARY REPORT', 40, 74);
 
-  // 課表名稱與日期
+  // 4. 課表名稱與日期
   ctx.fillStyle = '#10b981';
-  ctx.font = '900 28px sans-serif';
-  ctx.fillText(session.routineName, 40, 125);
+  ctx.font = '900 26px sans-serif';
+  const routineTitle = session.routineName || '自訂訓練';
+  ctx.fillText(routineTitle.length > 18 ? routineTitle.slice(0, 18) + '...' : routineTitle, 40, 122);
 
   ctx.fillStyle = '#64748b';
-  ctx.font = '500 14px monospace';
-  ctx.fillText(`DATE: ${session.date}   |   DURATION: ${session.durationMinutes || 45} MINS`, 40, 150);
+  ctx.font = '600 13px monospace';
+  ctx.fillText(`DATE: ${session.date || new Date().toISOString().split('T')[0]}   |   DURATION: ${session.durationMinutes || 45} MINS`, 40, 146);
 
-  // 數據統計大數字框 (容量 & 組數)
-  ctx.fillStyle = '#121725';
-  ctx.roundRect(40, 175, 520, 90, 16);
-  ctx.fill();
+  // 5. 數據統計大數字框 (高對比容量 & 組數)
+  drawCanvasRoundRect(ctx, 40, 170, 520, 95, 16, '#111827', '#1f293d');
 
   ctx.fillStyle = '#94a3b8';
   ctx.font = '700 12px sans-serif';
-  ctx.fillText('TOTAL VOLUME LOAD', 65, 205);
-  ctx.fillText('COMPLETED SETS', 345, 205);
+  ctx.fillText('TOTAL VOLUME LOAD', 65, 202);
+  ctx.fillText('COMPLETED SETS', 345, 202);
+
+  const totalVolNum = Number(session.totalVolume) || 0;
+  const totalSetsNum = Number(session.totalSets) || 0;
 
   ctx.fillStyle = '#10b981';
   ctx.font = '900 32px monospace';
-  ctx.fillText(`${session.totalVolume.toLocaleString()} KG`, 65, 245);
+  ctx.fillText(`${totalVolNum.toLocaleString()} KG`, 65, 244);
 
   ctx.fillStyle = '#ffffff';
   ctx.font = '900 32px monospace';
-  ctx.fillText(`${session.totalSets} SETS`, 345, 245);
+  ctx.fillText(`${totalSetsNum} SETS`, 345, 244);
 
-  // 動作明細清單
-  ctx.fillStyle = '#cbd5e1';
-  ctx.font = '700 16px sans-serif';
+  // 6. 動作明細標題
+  ctx.fillStyle = '#e2e8f0';
+  ctx.font = '800 15px sans-serif';
   ctx.fillText('EXERCISE BREAKDOWN', 40, 305);
 
-  let curY = 335;
-  session.exercises.slice(0, 5).forEach((ex, idx) => {
-    ctx.fillStyle = '#121725';
-    ctx.roundRect(40, curY, 520, 55, 10);
-    ctx.fill();
+  // 7. 動作清單迴圈 (完整呈現所有動作，高對比顯示名稱、組數與最高負重)
+  let curY = 325;
+  exercises.forEach((ex) => {
+    drawCanvasRoundRect(ctx, 40, curY, 520, 56, 12, '#131d31', '#223250');
 
+    // 動作名稱
     ctx.fillStyle = '#ffffff';
     ctx.font = '700 14px sans-serif';
-    ctx.fillText(ex.exerciseName, 55, curY + 25);
+    const nameStr = ex.exerciseName || '訓練動作';
+    ctx.fillText(nameStr.length > 28 ? nameStr.slice(0, 28) + '...' : nameStr, 58, curY + 25);
 
-    // 最大負重
-    const maxW = Math.max(...ex.sets.map(s => s.weight), 0);
-    const setsCnt = ex.sets.length;
-    ctx.fillStyle = '#f59e0b';
+    // 組數與最高負重 TOP Weight
+    const maxW = (ex.sets && ex.sets.length > 0) ? Math.max(...ex.sets.map(s => Number(s.weight) || 0), 0) : 0;
+    const setsCnt = ex.sets ? ex.sets.length : 0;
+
+    ctx.fillStyle = '#fbbf24';
     ctx.font = '800 13px monospace';
-    ctx.fillText(`${setsCnt} 組  •  TOP ${maxW} KG`, 55, curY + 45);
+    ctx.fillText(`${setsCnt} COMPLETED SETS`, 58, curY + 45);
 
-    curY += 65;
+    ctx.fillStyle = '#34d399';
+    ctx.font = '900 13px monospace';
+    ctx.fillText(`TOP ${maxW} KG`, 430, curY + 45);
+
+    curY += 68;
   });
 
-  // 底部硬派標籤
-  ctx.fillStyle = '#334155';
-  ctx.font = '600 12px monospace';
-  ctx.fillText('NO PAIN NO GAIN  •  FORGED IN IRON', 40, 715);
+  // 8. 底部硬派精神標籤
+  ctx.fillStyle = '#475569';
+  ctx.font = '700 12px monospace';
+  ctx.fillText('NO PAIN NO GAIN  •  FORGED IN IRON  •  IRONLOG PRO', 40, dynamicHeight - 25);
 
   modal.classList.remove('hidden');
 }
@@ -1514,6 +2633,213 @@ function downloadShareCard() {
   link.href = canvas.toDataURL('image/png');
   link.click();
   alertToast('已儲存訓練結算圖！');
+}
+
+// ======================= 9.5 動作示範指南與 Form Check 側拍影片回放控制器 =======================
+let currentGuideExerciseId = null;
+let currentVideoObjectUrl = null;
+
+async function openExerciseGuideModal(exerciseId, exerciseName, category = '胸部', defaultTab = 'guide') {
+  currentGuideExerciseId = exerciseId;
+  const modal = document.getElementById('exerciseGuideModal');
+  const nameEl = document.getElementById('guideModalExerciseName');
+  const catBadge = document.getElementById('guideModalCategoryBadge');
+  const muscleSummary = document.getElementById('guideModalMuscleSummary');
+
+  nameEl.textContent = exerciseName;
+  catBadge.textContent = category;
+
+  // 取得動作指南 (支援40+主流字典與智能兜底)
+  const guide = getExerciseGuide(exerciseId, exerciseName, category);
+  muscleSummary.textContent = `主要受力：${guide.primary} | 次要輔助：${guide.secondary}`;
+
+  // 1. 預備姿勢
+  const setupList = document.getElementById('guideSetupList');
+  setupList.innerHTML = (guide.setup || []).map((s, i) => `
+    <li class="flex items-start gap-2">
+      <span class="w-4 h-4 rounded-full bg-amber-500/20 text-accent-amber font-mono font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">${i + 1}</span>
+      <span class="leading-relaxed">${s}</span>
+    </li>
+  `).join('');
+
+  // 2. 動作過程
+  const execList = document.getElementById('guideExecutionList');
+  execList.innerHTML = (guide.execution || []).map((s, i) => `
+    <li class="flex items-start gap-2">
+      <span class="w-4 h-4 rounded-full bg-emerald-500/20 text-accent-green font-mono font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">${i + 1}</span>
+      <span class="leading-relaxed">${s}</span>
+    </li>
+  `).join('');
+
+  // 3. 關鍵發力與呼吸
+  const cuesList = document.getElementById('guideCuesList');
+  cuesList.innerHTML = (guide.cues || []).map(s => `
+    <li class="flex items-start gap-2">
+      <i data-lucide="check-circle" class="w-3.5 h-3.5 text-accent-blue shrink-0 mt-0.5"></i>
+      <span class="leading-relaxed">${s}</span>
+    </li>
+  `).join('');
+
+  // 載入側拍影片與要訣資料
+  await loadVideoTabState(exerciseId);
+
+  // 切換至指定頁籤
+  switchGuideModalTab(defaultTab);
+
+  modal.classList.remove('hidden');
+  if (window.lucide) lucide.createIcons();
+}
+
+async function loadVideoTabState(exerciseId) {
+  const player = document.getElementById('formCheckVideoPlayer');
+  const placeholder = document.getElementById('formCheckVideoPlaceholder');
+  const removeBtn = document.getElementById('removeBoundVideoBtn');
+  const urlInput = document.getElementById('externalVideoUrlInput');
+  const cueTextarea = document.getElementById('formCueNotesTextarea');
+
+  // 清除先前的 ObjectURL 防止記憶體外洩
+  if (currentVideoObjectUrl) {
+    URL.revokeObjectURL(currentVideoObjectUrl);
+    currentVideoObjectUrl = null;
+  }
+  player.pause();
+  player.removeAttribute('src');
+  player.load();
+
+  const data = await formCheckDB.get(exerciseId) || {};
+  cueTextarea.value = data.cueNote || '';
+  urlInput.value = data.url || '';
+
+  if (data.blob) {
+    currentVideoObjectUrl = URL.createObjectURL(data.blob);
+    player.src = currentVideoObjectUrl;
+    player.classList.remove('hidden');
+    placeholder.classList.add('hidden');
+    removeBtn.classList.remove('hidden');
+  } else if (data.url && data.url.trim()) {
+    player.src = data.url.trim();
+    player.classList.remove('hidden');
+    placeholder.classList.add('hidden');
+    removeBtn.classList.remove('hidden');
+  } else {
+    player.classList.add('hidden');
+    placeholder.classList.remove('hidden');
+    removeBtn.classList.add('hidden');
+  }
+}
+
+function switchGuideModalTab(tab = 'guide') {
+  const guideBtn = document.getElementById('guideTabBtn');
+  const videoBtn = document.getElementById('videoTabBtn');
+  const guidePane = document.getElementById('guideTabPane');
+  const videoPane = document.getElementById('videoTabPane');
+  const player = document.getElementById('formCheckVideoPlayer');
+
+  if (tab === 'guide') {
+    guideBtn.className = 'flex-1 py-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 bg-iron-800 text-white shadow-sm';
+    videoBtn.className = 'flex-1 py-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 text-slate-400 hover:text-slate-200';
+    guidePane.classList.remove('hidden');
+    videoPane.classList.add('hidden');
+    player.pause();
+  } else {
+    videoBtn.className = 'flex-1 py-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 bg-iron-800 text-white shadow-sm';
+    guideBtn.className = 'flex-1 py-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 text-slate-400 hover:text-slate-200';
+    guidePane.classList.add('hidden');
+    videoPane.classList.remove('hidden');
+    if (!player.classList.contains('hidden') && player.src) {
+      player.play().catch(() => {});
+    }
+  }
+  if (window.lucide) lucide.createIcons();
+}
+
+function initExerciseGuideModalEvents() {
+  document.getElementById('closeGuideModalBtn').addEventListener('click', () => {
+    const player = document.getElementById('formCheckVideoPlayer');
+    player.pause();
+    document.getElementById('exerciseGuideModal').classList.add('hidden');
+  });
+
+  document.getElementById('guideTabBtn').addEventListener('click', () => switchGuideModalTab('guide'));
+  document.getElementById('videoTabBtn').addEventListener('click', () => switchGuideModalTab('video'));
+
+  // 本地上傳按鈕觸發 hidden input
+  document.getElementById('triggerVideoUploadBtn').addEventListener('click', () => {
+    document.getElementById('formCheckFileInput').click();
+  });
+
+  // 選擇本地影片檔案 (IndexedDB 儲存 Blob)
+  document.getElementById('formCheckFileInput').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file || !currentGuideExerciseId) return;
+
+    if (!file.type.startsWith('video/')) {
+      alert('請選取影片檔案 (MP4, WebM, MOV 等)');
+      return;
+    }
+
+    const existing = await formCheckDB.get(currentGuideExerciseId) || {};
+    existing.blob = file;
+    existing.url = '';
+    await formCheckDB.set(currentGuideExerciseId, existing);
+
+    alertToast('✅ 本地側拍影片已成功儲存至 IndexedDB！');
+    sound.vibrate(25);
+    await loadVideoTabState(currentGuideExerciseId);
+    renderWorkoutSheet();
+    e.target.value = '';
+  });
+
+  // 外鏈儲存
+  document.getElementById('saveExternalUrlBtn').addEventListener('click', async () => {
+    const url = document.getElementById('externalVideoUrlInput').value.trim();
+    if (!url || !currentGuideExerciseId) {
+      alert('請輸入有效的影片直連網址');
+      return;
+    }
+
+    const existing = await formCheckDB.get(currentGuideExerciseId) || {};
+    existing.url = url;
+    existing.blob = null;
+    await formCheckDB.set(currentGuideExerciseId, existing);
+
+    alertToast('✅ 已成功綁定外部影片網址！');
+    sound.vibrate(25);
+    await loadVideoTabState(currentGuideExerciseId);
+    renderWorkoutSheet();
+  });
+
+  // 移除影片
+  document.getElementById('removeBoundVideoBtn').addEventListener('click', async () => {
+    if (!currentGuideExerciseId) return;
+    if (confirm('確定要移除此動作的側拍影片嗎？（要訣備忘仍會保留）')) {
+      await formCheckDB.removeVideo(currentGuideExerciseId);
+      alertToast('已移除側拍影片');
+      await loadVideoTabState(currentGuideExerciseId);
+      renderWorkoutSheet();
+    }
+  });
+
+  // 個人發力要訣備忘即時保存
+  const cueTextarea = document.getElementById('formCueNotesTextarea');
+  const indicator = document.getElementById('cueNotesSaveIndicator');
+  let saveTimer = null;
+
+  cueTextarea.addEventListener('input', () => {
+    indicator.textContent = '儲存中...';
+    indicator.className = 'text-[10px] text-accent-amber font-mono';
+
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(async () => {
+      if (!currentGuideExerciseId) return;
+      const existing = await formCheckDB.get(currentGuideExerciseId) || {};
+      existing.cueNote = cueTextarea.value;
+      await formCheckDB.set(currentGuideExerciseId, existing);
+
+      indicator.textContent = '已自動儲存';
+      indicator.className = 'text-[10px] text-accent-green font-mono';
+    }, 400);
+  });
 }
 
 // ======================= 10. 動作選擇庫與快速打字建立 =======================
@@ -1925,6 +3251,20 @@ function setupEventListeners() {
         renderWorkoutSheet();
       }
     }
+
+    // 12. 動作示範指南
+    else if (action === 'open-guide') {
+      const exItem = state.activeWorkout.exercises[exIdx];
+      const exObj = state.exercises.find(e => e.id === exItem.exerciseId) || { name: '自訂動作', category: '胸部' };
+      openExerciseGuideModal(exItem.exerciseId, exObj.name, exObj.category, 'guide');
+    }
+
+    // 13. Form Check 側拍影片
+    else if (action === 'open-video') {
+      const exItem = state.activeWorkout.exercises[exIdx];
+      const exObj = state.exercises.find(e => e.id === exItem.exerciseId) || { name: '自訂動作', category: '胸部' };
+      openExerciseGuideModal(exItem.exerciseId, exObj.name, exObj.category, 'video');
+    }
   });
 
   // 部位活動度展開/折疊
@@ -1990,8 +3330,13 @@ function setupEventListeners() {
     alertToast(`已記錄體重：${w} kg`);
   });
 
-  // 完成今日訓練 (歸檔防呆)
+  // 完成今日訓練 (歸檔防呆與同日即時更新)
   document.getElementById('finishWorkoutBtn').addEventListener('click', () => {
+    if (!state.activeWorkout || !state.activeWorkout.exercises) {
+      alertToast('今日暫無進行中的訓練項目');
+      return;
+    }
+
     let completedCount = 0;
     let totalVol = 0;
     const sessionExercises = [];
@@ -2020,36 +3365,59 @@ function setupEventListeners() {
       return;
     }
 
+    if (!confirm('確定結束今日訓練並歸檔？\n\n（歸檔後隨時可繼續加組加練，系統將即時更新當日紀錄）')) {
+      return;
+    }
+
+    const todayStr = new Date().toISOString().split('T')[0];
     const durationMins = Math.max(15, Math.round((Date.now() - (state.activeWorkout.startTime || Date.now())) / (60 * 1000)));
 
-    const newSession = {
-      id: 'sess-' + Date.now(),
-      date: new Date().toISOString().split('T')[0],
-      timestamp: Date.now(),
-      routineName: state.activeWorkout.routineName,
-      category: state.activeWorkout.category,
-      durationMinutes: durationMins,
-      totalVolume: totalVol,
-      totalSets: completedCount,
-      exercises: sessionExercises
-    };
+    let savedSession = null;
+    const existingIndex = state.sessions.findIndex(s => s.date === todayStr);
 
-    state.sessions.unshift(newSession);
+    if (existingIndex !== -1) {
+      // 即時更新當日已存在的歸檔紀錄
+      state.sessions[existingIndex] = {
+        ...state.sessions[existingIndex],
+        routineName: state.activeWorkout.routineName,
+        category: state.activeWorkout.category,
+        durationMinutes: durationMins,
+        totalVolume: totalVol,
+        totalSets: completedCount,
+        exercises: sessionExercises,
+        timestamp: Date.now()
+      };
+      savedSession = state.sessions[existingIndex];
+    } else {
+      savedSession = {
+        id: 'sess-' + Date.now(),
+        date: todayStr,
+        timestamp: Date.now(),
+        routineName: state.activeWorkout.routineName,
+        category: state.activeWorkout.category,
+        durationMinutes: durationMins,
+        totalVolume: totalVol,
+        totalSets: completedCount,
+        exercises: sessionExercises
+      };
+      state.sessions.unshift(savedSession);
+    }
 
-    // 若排程是天數循環模式，完成後自動前進至下一節點！
-    if (state.schedule.mode === 'cycle') {
+    // 若排程是天數循環模式且初次完成，自動前進至下一節點
+    if (state.schedule.mode === 'cycle' && !state.activeWorkout.isTodayFinished) {
       state.schedule.cycleIndex++;
     }
 
-    state.activeWorkout = null;
+    // 標記今日已歸檔，但不強制清空 activeWorkout，允許使用者繼續修改或加練！
+    state.activeWorkout.isTodayFinished = true;
     saveState();
+    renderWorkoutSheet();
 
     sound.pr();
-    alertToast('🎉 今日訓練完成！組數已成功歸檔！');
-    switchNavTab('tab-analytics');
+    alertToast(existingIndex !== -1 ? '🎉 今日訓練已即時更新歸檔！' : '🎉 今日訓練完成！組數已成功歸檔！');
 
     // 自動彈出成果結算分享卡
-    setTimeout(() => openWorkoutSummaryModal(newSession), 500);
+    setTimeout(() => openWorkoutSummaryModal(savedSession), 400);
   });
 
   // 成果分享卡關閉與下載
@@ -2183,7 +3551,22 @@ function setupEventListeners() {
   });
 
   // 新增動作庫抽屜與打字搜尋/建立
-  document.getElementById('openAddExToWorkoutBtn').addEventListener('click', () => openExercisePicker('workout'));
+  document.getElementById('openAddExToWorkoutBtn').addEventListener('click', () => {
+    if (!state.activeWorkout) {
+      state.activeWorkout = {
+        routineId: 'custom-today',
+        routineName: '今日自主訓練',
+        category: '全身',
+        startTime: Date.now(),
+        mobilityChecks: (MOBILITY_PROTOCOLS['全身'] || []).map(m => ({ text: m.text, done: false })),
+        exercises: [],
+        isTodayFinished: false
+      };
+      saveState();
+      renderWorkoutSheet();
+    }
+    openExercisePicker('workout');
+  });
   document.getElementById('addExerciseToTemplateBtn').addEventListener('click', () => openExercisePicker('routine'));
   document.getElementById('closePickerModalBtn').addEventListener('click', () => {
     document.getElementById('exercisePickerModal').classList.add('hidden');
@@ -2222,17 +3605,25 @@ function setupEventListeners() {
   document.getElementById('clearAllHistoryBtn').addEventListener('click', () => {
     if (confirm('確定要清空所有歷史訓練紀錄與 PR 嗎？\n\n（您的自訂課表範本與每週排程會完整保留，僅清除歷史訓練紀錄）')) {
       state.sessions = [];
+      if (state.activeWorkout) {
+        (state.activeWorkout.exercises || []).forEach(ex => {
+          (ex.sets || []).forEach(s => s.isCompleted = false);
+        });
+        state.activeWorkout.isTodayFinished = false;
+      }
       saveState();
+      renderWorkoutSheet();
       renderAnalyticsView();
       alertToast('已成功清空所有訓練紀錄與 PR！');
       sound.vibrate(30);
     }
   });
 
-  // 徹底出廠重置
-  document.getElementById('factoryResetBtn').addEventListener('click', () => {
-    if (confirm('⚠️ 警告：這將徹底清除所有資料（包含所有課表、排程、歷史紀錄），恢復全新狀態！確定要繼續嗎？')) {
+  // 徹底出廠重置 (徹底清理 LocalStorage 與 IndexedDB 側拍影片)
+  document.getElementById('factoryResetBtn').addEventListener('click', async () => {
+    if (confirm('⚠️ 警告：這將徹底清除所有資料（包含所有課表、排程、歷史紀錄與側拍影片），恢復全新出廠狀態！確定要繼續嗎？')) {
       localStorage.clear();
+      await formCheckDB.clearAll();
       state.exercises = [...DEFAULT_EXERCISES];
       state.routines = [...DEFAULT_ROUTINES];
       state.schedule = {
@@ -2328,9 +3719,11 @@ function switchNavTab(targetNav) {
 }
 
 // ======================= 13. 應用程式入口 =======================
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
+  await formCheckDB.init();
   loadState();
   initGymToolbox();
+  initExerciseGuideModalEvents();
   setupEventListeners();
   renderWorkoutSheet();
   updateManualTimerDisplay();
